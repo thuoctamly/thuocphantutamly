@@ -1552,6 +1552,7 @@ window.showReview = function() {
                 <tr style="background: linear-gradient(135deg, #4a148c 0%, #7b1fa2 100%); color:#ffffff;">
                     <th style="padding:14px 10px; text-align:center; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Chu kỳ</th>
                     <th style="padding:14px 10px; text-align:center; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Điểm TB</th>
+		    <th style="padding:14px 10px; text-align:center; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Khuynh hướng</th>
                     <th style="padding:14px 10px; text-align:center; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Tổng điểm</th>
 		    <th style="padding:14px 10px; text-align:center; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Số lần gạt</th>
                     <th style="padding:14px 10px; text-align:center; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Thời gian</th>
@@ -1563,33 +1564,55 @@ window.showReview = function() {
     // Tạo các dòng cho bảng (Map -> Reverse -> Join) để đảm bảo thứ tự cũ nhất ở dưới cùng hoặc trên cùng tuỳ ý
     // Ở đây ta muốn hiển thị danh sách: Chu kỳ 1 (Cũ) -> Chu kỳ N (Mới) trong bảng
     const tableRows = state.finishedCycles.map((cycle, realIndex) => {
-        // realIndex chính là chỉ mục thực trong mảng state.finishedCycles
-        // Vì unshift (mới nhất index 0), nên số thứ tự Chu kỳ = Tổng số - Index hiện tại
-        const cycleNum = state.finishedCycles.length - realIndex; 
-        
-        const avgScore = cycle.avgScore;
-        const totalScore = cycle.totalScore || cycle.entries.reduce((a,b)=>a+(Number(b.value)||0),0);
-        const startObj = formatDateTime(cycle.startTime);
+    // realIndex chính là chỉ mục thực trong mảng state.finishedCycles
+    // Vì unshift (mới nhất index 0), nên số thứ tự Chu kỳ = Tổng số - Index hiện tại
+    const cycleNum = state.finishedCycles.length - realIndex; 
+    
+    const avgScore = cycle.avgScore;
+    const totalScore = cycle.totalScore || cycle.entries.reduce((a,b)=>a+(Number(b.value)||0),0);
+    const startObj = formatDateTime(cycle.startTime);
 
-        let scoreColor = '#2ecc71'; 
-        let icon = '👤';
-        if (avgScore <= -6667) { scoreColor = '#8e44ad'; icon = '😈'; }
-        else if (avgScore <= -3334) { scoreColor = '#e74c3c'; icon = '🔥'; }
-        else if (avgScore >= 6667) { scoreColor = '#FFD700'; icon = '😇'; }
-        else if (avgScore >= 3334) { scoreColor = '#2980b9'; icon = '🕊️'; }
+    // 💡 LOGIC XÁC ĐỊNH MÀU SẮC & ICON ĐƯỢC GIỮ NGUYÊN (và dùng cho ô Khuynh hướng)
+    let scoreColor = '#2ecc71'; // Ego/Cân bằng
+    let icon = '👤';
+    let trendLabel = 'Bản ngã'; // Thêm nhãn để hiển thị chữ
 
-        return `
-            <tr style="background-color:${cycleNum % 2 === 0 ? '#f9f9f9' : '#ffffff'};">
-                <td style="padding:8px; border:1px solid #ddd; text-align:center; font-weight:bold;">${cycleNum}</td>
-                <td style="padding:8px; border:1px solid #ddd; text-align:center; font-weight:bold; color:${scoreColor};">
-                    ${icon} ${avgScore > 0 ? '+' : ''}${avgScore.toFixed(1)}
-                </td>
-                <td style="padding:8px; border:1px solid #ddd; text-align:center;">${totalScore > 0 ? '+' : ''}${totalScore}</td>
-		<td style="padding:8px; border:1px solid #ddd; text-align:center;">${cycle.entries.length}</td>
-                <td style="padding:8px; border:1px solid #ddd; text-align:center; font-size:12px;">${startObj.time} ${startObj.date}</td>
-            </tr>
-        `;
-    });
+    if (avgScore <= -6667) { 
+        scoreColor = '#8e44ad'; // Bản năng mạnh (Tím)
+        icon = '😈'; 
+        trendLabel = 'Bản năng mạnh';
+    }
+    else if (avgScore <= -3334) { 
+        scoreColor = '#e74c3c'; // Bản năng vừa (Đỏ)
+        icon = '🔥'; 
+        trendLabel = 'Bản năng vừa';
+    }
+    else if (avgScore >= 6667) { 
+        scoreColor = '#FFD700'; // Siêu ngã mạnh (Vàng)
+        icon = '😇'; 
+        trendLabel = 'Siêu ngã mạnh';
+    }
+    else if (avgScore >= 3334) { 
+        scoreColor = '#2980b9'; // Siêu ngã vừa (Xanh dương)
+        icon = '🕊️'; 
+        trendLabel = 'Siêu ngã vừa';
+    }
+
+    return `
+        <tr style="background-color:${cycleNum % 2 === 0 ? '#f9f9f9' : '#ffffff'};">
+            <td style="padding:8px; border:1px solid #ddd; text-align:center; font-weight:bold;">${cycleNum}</td>
+            <td style="padding:8px; border:1px solid #ddd; text-align:center; font-weight:bold; color:${scoreColor};">
+                ${avgScore > 0 ? '+' : ''}${avgScore.toFixed(1)}
+            </td>
+            <td style="padding:8px; border:1px solid #ddd; text-align:center; font-weight: bold; color:${scoreColor};">
+                ${icon} ${trendLabel} 
+            </td>
+            <td style="padding:8px; border:1px solid #ddd; text-align:center;">${totalScore > 0 ? '+' : ''}${totalScore}</td>
+            <td style="padding:8px; border:1px solid #ddd; text-align:center;">${cycle.entries.length}</td>
+            <td style="padding:8px; border:1px solid #ddd; text-align:center; font-size:12px;">${startObj.time} ${startObj.date}</td>
+        </tr>
+    `;
+});
 
     // Đảo ngược mảng rows để hiển thị Chu kỳ 1 lên đầu bảng (hoặc bỏ .reverse() nếu muốn mới nhất lên đầu)
     summaryHtml += tableRows.reverse().join(''); 
