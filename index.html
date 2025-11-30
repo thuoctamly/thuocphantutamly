@@ -1,4 +1,4 @@
-eeeeee<!doctype html>  
+<!doctype html>  
 <html lang="vi">
 <head>
 <link rel="manifest" href="manifest.json">
@@ -872,21 +872,7 @@ function initSlider(){
         pendingConfirmTimer = null;
       }
 
-      // hẹn xác nhận sau 450ms (người dùng thực sự dừng)
-      pendingConfirmTimer = setTimeout(() => {
-        pendingConfirmTimer = null;
-
-        // bảo vệ: tránh confirm lặp quá nhanh
-        const now = Date.now();
-        if (now - lastConfirmAt < 300) return;
-
-        confirmEntry();               // gọi hàm ghi entry (hiển thị + lưu)
-        lastConfirmAt = Date.now();
-
-        // ngăn click kế tiếp ghi đúp (nếu có)
-        suppressNextClick = true;
-        setTimeout(()=> { suppressNextClick = false; }, 350);
-      }, 450);
+      
 
       // reset moved sau 600ms để tránh va chạm với click handler
       setTimeout(()=> { moved = false; }, 600);
@@ -948,61 +934,89 @@ function confirmEntry(){
   const y = slider.offsetTop + slider.offsetHeight/2;
 
   const v = yToValue(y);
+// ---------- HIỆN ĐIỂM TỨC THỜI (show instant score) - SỬA: đồng bộ màu với LED ----------
+let inst = document.getElementById('instantScore');
 
-  // ---------- HIỆN ĐIỂM TỨC THỜI (show instant score) ----------
-  // ---------- HIỆN ĐIỂM TỨC THỜI (show instant score) ----------
-  let inst = document.getElementById('instantScore');
-  const statusRight = document.getElementById('statusRight'); // <--- Lấy container cần căn phải
-  
-  if(!inst){
-    inst = document.createElement('div');
-    inst.id = 'instantScore';
-    // inst.style.position = 'absolute'; // Đã bỏ
-    inst.style.display = 'none';
-    inst.style.fontWeight = '700';
-    inst.style.fontSize = '16px';
-    inst.style.lineHeight = '1';
-    inst.style.padding = '4px 8px';
-    inst.style.borderRadius = '10px';
-    inst.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-    inst.style.background = 'rgba(255,255,255,0.98)';
-    // inst.style.pointerEvents = 'none'; // Không cần nữa
-    // inst.style.zIndex = '9999'; // Không cần nữa
-    inst.style.transition = 'opacity 0.25s ease';
-    inst.style.color = '#004080';
-    
-    // SỬA: Chèn vào statusRight thay vì document.body
-    if (statusRight) {
-      statusRight.appendChild(inst);
-    } else {
-      document.body.appendChild(inst); // Fallback
-    }
-  }
+// danh sách class màu text (tương ứng đã có trong CSS)
+const instantColorClasses = ['color-purple','color-red','color-green','color-blue','color-amber'];
 
-  // (Phần code đã xóa logic tính toán vị trí nằm ở đây)
+// mapping category -> class và màu dự phòng (inline)
+const instantMap = {
+  'bn_manh': { cls: 'color-purple', color: '#8e44ad' },
+  'bn_vua' : { cls: 'color-red',    color: '#e74c3c' },
+  'ego'    : { cls: 'color-green',  color: '#2ecc71' },
+  'sn_vua' : { cls: 'color-blue',   color: '#2980b9' },
+  'sn_manh': { cls: 'color-amber',  color: '#FFD700' }
+};
 
-  // Nội dung + hiển thị
-  const cat = getCategoryFromValue(v);
-  inst.textContent = (v > 0 ? '+' : '') + v + ' ' + cat.emoji;
-  if (inst._hideTimeout) { clearTimeout(inst._hideTimeout); inst._hideTimeout = null; }
-  
-  inst.style.opacity = '1';
-  inst.style.display = 'inline-flex'; // <--- SỬA: Hiển thị inline-flex để căn chỉnh
-  
-  // (Phần requestAnimationFrame thứ 2 đã bị xóa)
+// 1. Tạo phần tử nếu chưa có
+if(!inst){
+  inst = document.createElement('div');
+  inst.id = 'instantScore';
 
-  // Ẩn sau 700ms với fade
-  inst._hideTimeout = setTimeout(()=> {
-    inst.style.opacity = '0';
-    setTimeout(()=> {
-      inst.style.display = 'none';
-      inst.style.opacity = '1'; // reset cho lần sau
-    }, 250);
-    inst._hideTimeout = null;
-  }, 700);
+  // CSS cho ô nổi trong suốt (giữ nguyên các style bạn muốn)
+  inst.style.position = 'absolute';
+  inst.style.fontWeight = '800';
+  inst.style.fontSize = '35px';
+  inst.style.lineHeight = '1';
+  inst.style.padding = '0';
+  inst.style.background = 'transparent';
+  inst.style.pointerEvents = 'none';
+  inst.style.zIndex = '100';
+  inst.style.transition = 'all 0.6s ease-out';
+  inst.style.whiteSpace = 'nowrap';
+  inst.style.opacity = '0';
 
-  // ...
-  // ---------- KẾT THÚC PHẦN HIỂN THỊ ĐIỂM TỨC THỜI ----------
+  // chú ý gắn vào ruler để toạ độ ăn theo slider
+  document.getElementById('ruler').appendChild(inst);
+}
+
+// 2. Tính toán vị trí: Nằm ngay trên đầu slider
+const currentSliderTop = parseFloat(slider.style.top) || slider.offsetTop;
+inst.style.left = '50%';
+inst.style.transform = 'translateX(-50%)';
+inst.style.top = (currentSliderTop - 35) + 'px';
+
+// 3. Nội dung hiển thị + đồng bộ màu
+const cat = getCategoryFromValue(v);
+inst.textContent = (v > 0 ? '+' : '') + v + ' ' + cat.emoji;
+
+// remove mọi class màu cũ rồi áp class mới (dựng trên CSS bạn đã có)
+inst.classList.remove(...instantColorClasses);
+const cfg = instantMap[cat.key] || instantMap['ego'];
+if (cfg && cfg.cls) inst.classList.add(cfg.cls);
+
+// fallback inline color (nếu CSS bị ghi đè)
+if (cfg && cfg.color) {
+  inst.style.color = cfg.color;
+} else {
+  inst.style.color = '#004080';
+}
+
+// (tuỳ chọn) điều chỉnh text-shadow để chữ dễ đọc trên nền sáng khi màu vàng
+if (cat.key === 'sn_manh') {
+  inst.style.textShadow = '0 1px 2px rgba(0,0,0,0.6)';
+} else {
+  inst.style.textShadow = '0 2px 4px rgba(255,255,255,0.8), 0 0 10px #fff';
+}
+
+// 4. Kích hoạt hiệu ứng bay lên (giữ logic cũ)
+inst.style.display = 'block';
+inst.style.opacity = '1';
+inst.style.transition = 'none';
+inst.style.top = (currentSliderTop - 35) + 'px';
+void inst.offsetWidth;
+inst.style.transition = 'all 0.6s ease-out';
+inst.style.top = (currentSliderTop - 80) + 'px';
+inst.style.opacity = '0';
+
+// 5. Dọn dẹp sau khi animation xong
+if (inst._hideTimeout) clearTimeout(inst._hideTimeout);
+inst._hideTimeout = setTimeout(()=> {
+  inst.style.display = 'none';
+}, 1000);
+// ---------- KẾT THÚC PHẦN HIỂN THỊ ĐIỂM TỨC THỜI ----------
+
 
   // Lưu entry với nhãn chi tiết
   state.entries.push({
@@ -1014,39 +1028,80 @@ function confirmEntry(){
   });
   saveCurrentCycle();
 
-  flashWhite();
+  flashLedForValue(v);
   playBeep();
   slider.style.transition='top 0.25s ease';
   setTimeout(()=>slider.style.transition='',300);
 }
 
-function flashWhite() {
-  LED.classList.remove('red','amber','green','pulse','led-red-alert','pulse-amber');
+// Thay thế flashWhite() bằng flashLedForValue(value)
+// Nháy LED với màu tương ứng mỗi lần ghi điểm tức thời
+function flashLedForValue(value) {
+  // đảm bảo xóa mọi lớp/hiệu ứng trước
+  LED.classList.remove('red','amber','green','pulse','led-red-alert','pulse-amber','purple','blue');
   LED.style.transition = 'none';
-  LED.style.background = '#ffffff';
 
-  // bật sáng
-  LED.style.opacity = '1';
+  // xác định loại dựa trên giá trị
+  const cat = getCategoryFromValue(value);
 
-  // tắt nhanh sau 120ms
-  setTimeout(() => {
-    LED.style.transition = 'opacity 0.15s';
-    LED.style.opacity = '0.2';
-  }, 120);
-
-  // tắt hoàn toàn sau 250ms (trở về trạng thái cũ)
-  setTimeout(() => {
-    LED_clear();
-    LED.style.opacity = '1'; 
-  }, 250);
-}
-// Countdown
-function updateCountdown() {
-  if (state.status !== 'running') {
-    countdownEl.textContent = '--';
-    return;
+  // gán màu + hiệu ứng ngắn theo category
+  switch (cat.key) {
+    case 'bn_manh': // Bản năng mạnh -> tím nhấp nháy
+      LED.classList.add('purple','pulse');
+      LED.style.background = '#8e44ad';
+      LED.style.animationDuration = '1.6s';
+      break;
+    case 'bn_vua': // Bản năng vừa -> đỏ nhấp nháy
+      LED.classList.add('red','pulse');
+      LED.style.background = '#e74c3c';
+      LED.style.animationDuration = '1.6s';
+      break;
+    case 'ego': // Bản ngã -> xanh lá tĩnh
+      LED.classList.add('green');
+      LED.style.background = '#2ecc71';
+      // loại bỏ pulse nếu có
+      LED.classList.remove('pulse','led-red-alert','pulse-amber');
+      break;
+    case 'sn_vua': // Siêu ngã vừa -> xanh dương nhấp nháy
+      LED.classList.add('blue','pulse');
+      LED.style.background = '#2980b9';
+      LED.style.animationDuration = '1.6s';
+      break;
+    case 'sn_manh': // Siêu ngã mạnh -> vàng/amber nhấp nháy
+      LED.classList.add('amber','pulse-amber');
+      LED.style.background = '#FFD700';
+      LED.style.animationDuration = '1.6s';
+      break;
+    default:
+      // fallback: trắng như cũ (chỉ phòng trường hợp)
+      LED.style.background = '#ffffff';
+      break;
   }
 
+  // hiển thị sáng trong 120ms rồi mờ dần tương tự logic trước
+  LED.style.opacity = '1';
+  setTimeout(() => {
+    LED.style.transition = 'opacity 0.15s';
+    LED.style.opacity = '0.25';
+  }, 120);
+
+  // sau 250ms, reset LED về trạng thái mặc định (không phá finishCycle)
+  setTimeout(() => {
+    LED_clear();
+    LED.style.opacity = '1';
+  }, 250);
+}
+
+
+// Countdown
+function updateCountdown() {
+	const resetBtn = document.getElementById('resetBtn');
+  if (state.status !== 'running') {
+    countdownEl.textContent = '--';
+    resetBtn.style.display = 'block';
+    return;
+  }
+  resetBtn.style.display = 'none';
   const now = Date.now();
   const rem = state.startTimestamp + MS_COUNTDOWN - now;
 
@@ -1285,7 +1340,7 @@ startCycle();
   startCycle();
 };
 
-const helpContent ='<strong>🎯 ĐỊNH NGHĨA BA TẦNG TÂM LÝ</strong>\n<strong>1) BẢN NĂNG (Id)  – TẦNG NĂNG LƯỢNG NGUYÊN THỦY 💥- ĐÔI KHI LÀ ÁC QUỶ 👿! THÚ TÍNH 🐺!</strong> \nBản năng là phần sâu nhất và nguyên thủy nhất của con người:  \nChứa các nhu cầu sinh học: ăn, ngủ, sinh tồn... 🍖😴 \nChứa các cảm xúc thô: giận dữ, hận thù, ham muốn, chiếm hữu, ghen tuông... 😡🔥 \nKhông biết đúng – sai ⚖️ \nKhông biết đạo đức hay pháp luật \nChỉ muốn thỏa mãn ngay lập tức ⏩ \nHoạt động theo Nguyên tắc Khoái cảm 😋 \nBản năng là động cơ thô, mạnh mẽ nhưng thiếu kiểm soát. \nBản năng không xấu.\nNó là động cơ sống, thúc đẩy sáng tạo, sức mạnh, sinh lực. Nhưng nếu không được điều tiết, nó dễ trở thành xung lực mất kiểm soát.\n→ Cần Bản ngã điều tiết và Siêu ngã định hướng. \n\n<strong>2) BẢN NGÃ (Ego) 🧠🦰👤– CON NGƯỜI THỰC TẾ</strong> \nBản ngã hình thành để giúp con người thích nghi với thực tại: \n- Đánh giá hậu quả, cân nhắc trước khi làm 💡 \n- Tìm cách thỏa mãn Bản năng mà không gây rắc rối \n- Nhận diện luật lệ, giới hạn, rủi ro 🌍 \n- Lập kế hoạch – tổ chức – kiểm soát hành vi 📅🕹️ \nBản ngã vận hành theo Nguyên tắc Hiện thực: điều gì có thể – điều gì được phép – điều gì nên làm.\nBản ngã là bộ điều phối trung tâm: \n- Giảm bớt yêu cầu bốc đồng của Bản năng \n- Giảm sự khắt khe quá mức của Siêu ngã \n- Giữ cho cá nhân sống cân bằng – lý trí – thích nghi với đời sống thực tế \n\n<strong>3) SIÊU NGÃ (Superego) 🕊️– HỆ THỐNG ĐẠO ĐỨC & LÝ TƯỞNG - THIÊN THẦN 😇✨</strong> \nSiêu ngã gồm <strong>Cái Tôi Lý tưởng</strong> (hình ảnh đẹp nhất mà bản thân muốn trở thành) và <strong>Lương tâm</strong> (cảm giác tội lỗi khi làm điều sai trái, tự hào khi làm điều đúng).\nSiêu ngã được tạo nên từ: giáo dục 📚, văn hóa – xã hội 🌏, sự hướng thiện – mong muốn trở nên tốt đẹp hơn 🕊️😇. \nNó vận hành theo Nguyên tắc Đạo đức/Lý tưởng: \n- Đặt ra tiêu chuẩn đúng – sai ⚖️ \n- Tạo cảm giác tội lỗi khi làm sai 💔 \n- Tạo cảm giác tự hào khi làm đúng 🌈 \n- Luôn muốn đạt sự hoàn hảo 🏆 \nSiêu ngã là người giám sát nội tâm: \n→ Khuyến khích điều tốt \n→ Ngăn hành vi sai \n→ Nhưng đôi khi khiến bạn nghiêm khắc quá mức với bản thân \n\n<strong>📏 3 NGUYÊN TẮC ĐỂ GẠT THƯỚC ĐÚNG</strong> \n<strong>1) ĐỘNG CƠ 🚀</strong> \nMục đích thật sự của bạn...? \nPhục vụ bản thân hay người khác...? \nXuất phát từ cảm xúc, lý trí hay đạo đức...? \n\n<strong>2) BẢN CHẤT KHÁCH QUAN 🧐</strong> \nTheo pháp luật – văn hóa – đạo đức - xã hội hiện tại nơi bạn sống, hành vi đó gây hại hay gây lợi...? \nHậu quả nặng hay nhẹ...? Lâu dài hay nhất thời…?\nNgười bình thường sẽ đánh giá thế nào?\n\n<strong>3) ĐỒNG CẢM 🤝</strong>\nTheo suy nghĩ của bạn: Người đối diện sẽ cảm thấy gì khi bạn làm như vậy (hạnh phúc, bình an, vui vẻ, được lợi, đau khổ, bất hạnh, tổn thương…)? \nTác động nhất thời hay dài hạn...? \n\n➡️ Với mỗi nguyên tắc, nếu hành vi khuynh hướng bên nào thì gạt về bên đó một đoạn. Vị trí cuối cùng của thanh gạt = kết quả sau khi gạt dồn vượt qua 3 nguyên tắc. Hoặc có thể nhìn nhận chung 3 nguyên tắc rồi gạt thước 1 lần sau đó cho phù hợp.\n\n❓ NẾU KHÔNG XÁC ĐỊNH ĐƯỢC 1 NGUYÊN TẮC? \nVí dụ: Chưa rõ động cơ, không biết luật, không nghĩ được đến cảm xúc người khác... \n➡️ Không gạt nguyên tắc đó \n\n<strong>🧭 KHI NÀO NÊN DÙNG – KHI NÀO KHÔNG NÊN DÙNG</strong> \n<strong>✅ DÙNG KHI hành vi có:</strong> Cảm xúc, nhận thức, ý thức rõ ràng, liên quan đến đạo đức, có lựa chọn, tác động đến người khác, có xung đột nội tâm, đấu tranh giữa bản năng - lý trí và đạo đức... \nVí dụ: Quyết định nói thật hay nói dối, tha thứ hay trả đũa, chia sẻ hay giữ lợi ích cho mình, nói lời tử tế hay lời làm tổn thương… \n\n<strong>❌ KHÔNG DÙNG KHI:</strong>\n1) Phản xạ sinh học: giật mình, né vật, co tay khi nóng... \n2) Công việc kỹ thuật – logic thuần túy: giải toán, viết code, nghiên cứu khoa học \n3) Thói quen vô thức: đánh răng, tắm, lướt mạng xã hội theo phản xạ... \n4) Hành vi tập thể – xã hội học: nghi lễ tôn giáo, biểu tình, bầu cử, mặc đồng phục... \n5) Hành vi siêu thức / ngoài thời gian – không gian: thiền sâu, sáng tạo đến quên mình, giác ngộ, cận tử... \n6) Người mất khả năng tự chủ: loạn thần, hoang tưởng, say rượu ảo giác, động kinh, bị cưỡng bức - ép buộc - hoàn cảnh chi phối mạnh... \n\n<strong>🔍 LỰA CHỌN GẠT TRƯỚC HAY SAU HÀNH VI</strong> \nGạt trước khi làm: \n→ Giúp bạn cân nhắc kỹ hậu quả \n→ Giảm hành vi bốc đồng \nGạt sau khi làm: \n→ Giúp bạn hiểu mình hơn \n→ Tăng khả năng tự đánh giá \n\n<strong>⚙️ CẤU HÌNH BAN ĐẦU (KHI RESET)</strong> \nThanh gạt đặt ở chính giữa → tượng trưng cho Bản ngã – trạng thái cân bằng ⚖️ \nĐiểm trung bình = 0 🎯 \nĐèn và âm thanh tắt 🔕 \n\n<strong>⏳ CHU KỲ PHẢN TƯ 168 GIỜ (7 NGÀY)</strong> \nSau khi nhấn <strong>Reset</strong> → đồng hồ bắt đầu đếm 168 giờ \nTrong 7 ngày: \nGạt thước không giới hạn số lần \nMỗi lần nhấn → điểm được dùng vào việc tính Điểm trung bình 📊 \n\n<strong>🎚️ CÁCH THỨC GHI NHẬN XU HƯỚNG TÂM LÝ</strong> \nGạt về phía Bản năng (Id) → Điểm âm 💔 \n→ Hành vi thiên về cảm xúc thô – thiếu cân nhắc \nGạt về phía Siêu ngã (Superego) → Điểm dương ❤️ \n→ Hành vi thiên về đạo đức – chuẩn mực – trách nhiệm \nCàng sát hai cực → mức độ càng mạnh \n\n<strong>🧠 XÁC NHẬN ĐIỂM</strong> \nKhi ấn xuống trên thanh gạt: \nHệ thống lưu lại điểm 🗃️ \nĐèn sáng trắng 🤍 \nPhát tiếng bíp nhẹ 🔊 \n→ Báo hiệu: ghi điểm thành công 🎉, điểm sẽ được tính trong điểm trung bình xuất hiện sau 168 giờ. \nSau khi gạt và tích điểm xong một lần, nhấn nút <strong>Hồi vị</strong> để đưa thanh gạt về vị trí gốc chính giữa ban đầu, chuẩn bị cho lần gạt tiếp theo. \n\n<strong>📣 BÁO CÁO TỔNG KẾT TÂM LÝ SAU 168 GIỜ - 7 NGÀY - 1 TUẦN</strong>\n✨ Mỗi mức điểm trung bình là một “trạng thái nội tâm chủ đạo” kèm hiển thị đèn – âm thanh – khuynh hướng tâm lý ✨\n<strong>🟣 [-10000 → -6667] – BẢN NĂNG MẠNH 😈🐺💥</strong>\nĐèn LED: 🟣 Màu tím nhấp nháy liên tục\nÂm thanh: 🚨 Cảnh báo nặng \nBản năng mạnh🐺: là trạng thái mà con người hành động chủ yếu dựa trên những xung lực nguyên sơ và nhu cầu sinh học: ăn, ngủ, thoả mãn khoái cảm, sở hữu, thống trị, tránh đau đớn. Ở mức này, lý trí chưa đủ sức can thiệp để điều chỉnh, còn chuẩn mực đạo đức thì bị đẩy lùi về phía sau. Con người dễ bị cuốn theo ham muốn tức thời và phản ứng bốc đồng, nhiều khi bất chấp hậu quả. Những cảm xúc như giận dữ, tham lam, ghen tị, hay nhu cầu chiếm hữu được phóng đại, khiến hành vi trở nên bản năng, thô ráp và nhiều khi mâu thuẫn với xã hội. Bản năng mạnh mang sức sống mãnh liệt, nhưng nếu không được định hướng, nó có thể gây nên những xung đột nội tâm hoặc hành vi thiếu kiểm soát.\nLời khuyên: học cách dừng lại 5 giây trước khi phản ứng; ghi nhận cảm xúc thay vì hành động ngay theo nó; tập thể dục, thiền hoặc viết nhật ký để xả năng lượng thô.\n\n<strong>🔴 [-6666 → -3334] – BẢN NĂNG VỪA</strong>⚡️😠😋 \nĐèn LED: 🔴 Đỏ nhấp nháy kịch tính\nÂm thanh: 🎵 kịch tính, bất ổn\nỞ mức bản năng vừa, con người vẫn còn vận hành theo nhu cầu và ham muốn, nhưng các xung lực này đã được điều chỉnh một phần nhờ trải nghiệm và sự nhận biết về hậu quả. Người có mức bản năng này không hoàn toàn tuân theo cảm xúc bộc phát mà biết cân nhắc sơ bộ giữa cái muốn và cái nên. Những thôi thúc cá nhân vẫn còn mạnh nhưng không áp đảo toàn bộ suy nghĩ. Họ cho phép mình theo đuổi khoái cảm và nhu cầu tự nhiên, nhưng đã hình thành những giới hạn tương đối rõ ràng, ví dụ: biết kiềm lại cơn giận, biết chờ đợi, hoặc biết cân nhắc trước khi hành động. Đây là mức độ bản năng hài hòa hơn, tạo nền tảng cho sự vận hành của bản ngã.\nLời khuyên: tiếp tục rèn luyện khả năng tự kiềm chế bằng cách đặt “vạch dừng” cho bản thân; lập mục tiêu ngắn hạn để hướng bản năng vào việc có ích; phân tích hậu quả trước mỗi quyết định lớn.\n\n<strong>🟢 [-3333 → +3333] – BẢN NGÃ CÂN BẰNG</strong> 👤🌈⚖️🧠\nĐèn LED: 🟢 Xanh lá tĩnh – êm dịu, ổn định\nÂm thanh: 🎉 Nhạc chúc mừng vui tươi\nBản ngã là trung tâm điều phối của tâm lý, nơi con người học cách cân bằng giữa nhu cầu nội tại và yêu cầu của xã hội. Ở mức này, lý trí phát huy vai trò: phân tích, đánh giá, dự đoán, lựa chọn hành vi phù hợp theo hoàn cảnh. Bản ngã không phủ nhận bản năng nhưng biết định hướng nó một cách hiệu quả, thực tế và trưởng thành hơn. Con người có bản ngã mạnh thường hiểu rõ giới hạn của bản thân, biết kiểm soát hành vi, biết thoả hiệp khi cần và hành động dựa trên mục tiêu dài hạn. Đây là mức độ ổn định, giúp cá nhân sống thực tế, tự chủ, ra quyết định dựa trên lý trí mà vẫn giữ được bản chất con người.\nLời khuyên: luôn kiểm tra mục tiêu dài hạn trước các hành động ngắn hạn, giữ sự linh hoạt – bản ngã mạnh không cứng nhắc mà biết thích nghi, rèn kỹ năng ra quyết định: viết ra, phân tích, chọn phương án tối ưu.\nThông điệp: Đây chính là mục tiêu tối thượng – nhân văn mà hệ thống đo lường này hướng đến: giúp bạn sống hài hòa với chính mình và thế giới.\n\n<strong>🔵 [3334 → 6666] – SIÊU NGÃ VỪA ️✨💖🕊️</strong>\nĐèn LED: 🔵 Xanh dương nhấp nháy nhẹ – tinh khiết\nÂm thanh: 👼 Âm thanh thiên thần trong trẻo\nSiêu ngã vừa thể hiện sự hiện diện rõ ràng của những chuẩn mực đạo đức, lý tưởng và giá trị xã hội trong cách con người suy nghĩ và hành động. Ở mức này, cá nhân biết tự điều chỉnh bản thân dựa vào lương tâm, biết phân biệt đúng – sai, và có xu hướng hướng thiện nhưng vẫn giữ được sự linh hoạt. Họ không quá khắt khe với chính mình hay người khác, mà biết cân bằng giữa nguyên tắc và thực tế. Siêu ngã vừa giúp con người trở nên có trách nhiệm, thấu cảm và đáng tin cậy mà không rơi vào cực đoan đạo đức hay áp đặt. Đây là mức phát triển cho thấy sự trưởng thành về mặt nhân cách và giá trị sống.\nLời khuyên: tiếp tục duy trì lòng nhân ái nhưng nhớ tôn trọng ranh giới cá nhân, tránh cố gắng “cứu” tất cả mọi người – hãy chọn đúng nơi để giúp, học cách chấp nhận rằng không phải lúc nào cũng hoàn hảo.\n\n<strong>🟡 [6667 → 10000] – SIÊU NGÃ MẠNH  🤍😇🌟</strong>\nĐèn LED: 🟡 Vàng nhấp nháy mạnh – nổi bật\nÂm thanh: ⚠️ Cảnh báo\nSiêu ngã mạnh 🌟: là khi những chuẩn mực đạo đức và lý tưởng trở thành trung tâm định hướng mọi hành vi, đôi khi ở mức nghiêm khắc đến độ vượt qua nhu cầu cá nhân. Con người ở mức này sống theo những nguyên tắc rõ rệt, đề cao nghĩa vụ, đạo đức và công bằng, nhưng cũng dễ rơi vào tự phê bình quá mức, cảm giác tội lỗi hoặc khắt khe với bản thân và người khác. Họ đặt lý tưởng lên trên lợi ích cá nhân, đôi khi hy sinh nhu cầu tự nhiên để giữ vững điều họ cho là đúng. Đây là mức độ thể hiện sự trong sáng và chuẩn mực cao, nhưng nếu không được cân bằng bằng bản ngã, nó có thể dẫn đến cứng nhắc hoặc áp lực nội tâm.\nLời khuyên: hãy nhẹ nhàng với chính mình hơn – sự hoàn hảo không tồn tại, tập chấp nhận lỗi sai như một phần tự nhiên của con người, tạo thời gian cho nhu cầu cá nhân: nghỉ ngơi, thư giãn, vui chơi.\nKhuyến nghị: Hãy cho phép bản thân được mềm mại và ưu tiên chính mình nhiều hơn.\n______________________________________\nMỗi con số phản ánh sự dịch chuyển năng lượng tâm lý giữa Bản năng – Bản ngã – Siêu Ngã.\nDù bạn nằm ở vùng nào, hệ thống không phán xét, mà chỉ soi chiếu thế giới nội tâm để bạn hiểu, điều chỉnh và phát triển tốt hơn.\n\n<strong>📅➡️🧠 THEO DÕI LÂU DÀI & PHÁT TRIỂN NHÂN CÁCH</strong>\nHệ thống được thiết kế để không chỉ đo lường tức thời mà còn lưu trữ <strong>Nhật ký Tâm lý</strong> qua từng chu kỳ 7 ngày, giúp người dùng và nhà nghiên cứu quan sát sự biến chuyển của nội tâm theo thời gian:\n\n<strong>1. Quan sát dữ liệu định lượng (Số liệu & Xu hướng):</strong>\nThông qua <strong>Nhật ký</strong>, người dùng xem lại được các chu kỳ đã hoàn thành với các chỉ số cụ thể:\n<strong>Điểm trung bình:</strong> Con số tổng kết chính xác nhất xu hướng tâm lý chủ đạo của bạn trong suốt 1 tuần.\n\n<strong>Màu sắc tâm lý (5 vùng màu):</strong> Nhận diện rõ ràng bản thân đang thiên về vùng nào:\n🟣🔴 Bản năng (Tím/Đỏ - Năng lượng thô/Xung đột)\n🟢 Cân bằng (Xanh lá - Ổn định/Lý trí)\n🔵🟡 Siêu ngã (Xanh dương/Vàng - Đạo đức/Lý tưởng)\n\n<strong>Sự dịch chuyển:</strong> So sánh giữa các chu kỳ để thấy sự tiến bộ (Ví dụ: Từ màu Đỏ nóng nảy chuyển sang màu Xanh lá cân bằng).\n\n<strong>2. Thực hành phản tư sâu (Dữ liệu định tính):</strong>\nSau mỗi chu kỳ, hệ thống yêu cầu người dùng điền vào phiếu phản tư tâm lý gồm 3 câu hỏi cốt lõi:\n<strong>Sự kiện:</strong> Điều gì đáng nhớ nhất trong tuần đã kích hoạt cảm xúc của bạn?\n<strong>Xung đột nội tâm:</strong> Cuộc đấu tranh giữa cái "Tôi muốn" (Bản năng) và cái "Tôi nên" (Siêu ngã) diễn ra như thế nào với điều đó?\n<strong>Bài học:</strong> Rút ra kinh nghiệm từ điều đó để điều chỉnh hành vi cho tuần tiếp theo.\n\n<strong>3. Đánh giá hiệu quả công cụ:</strong>\nĐể phục vụ mục đích nghiên cứu khoa học, người dùng thực hiện đánh giá khách quan cuối mỗi chu kỳ:\n<strong>Chấm điểm Sao (⭐️):</strong>Đánh giá mức độ hiệu quả của thước trong việc giúp bạn: Hiểu bản thân, Thay đổi hành vi và Tính dễ sử dụng.\n<strong>Biểu tượng cảm xúc (Emoji):</strong> Đo lường mức độ hài lòng về cảm xúc sau khi sử dụng.\n\n<strong>4. Xuất báo cáo dữ liệu:</strong>\nNgười dùng có thể nhấn nút <strong>"📄 Xuất file Word"</strong> để tải về toàn bộ hồ sơ tâm lý.\nFile báo cáo bao gồm: Nhật ký hành vi chi tiết + Điểm trung bình + Nội dung phản tư + Dữ liệu đánh giá theo 5 mức.\n\n<em><strong>📝 Lưu ý quan trọng:</strong> Đây là nguồn cứ liệu thực tế quan trọng nhất để tác giả đưa vào bài báo cáo nghiên cứu tham gia cuộc thi KHKT cấp Thành phố, minh chứng cho tính hiệu quả và thực tiễn của sản phẩm.</em>\n\n<strong>⚠️ CẢNH BÁO & LƯU Ý QUAN TRỌNG</strong>\n<strong>1. Không phải công cụ chẩn đoán y tế / tâm lý 🧪🚫</strong> \nThước được thiết kế dựa trên thuyết Phân tâm học - vốn mang tính triết học nhiều hơn khoa học hiện đại (chưa được kiểm chứng, thiếu cơ sở khoa học, mang tính chủ quan cao, thiếu tính phổ quát), chỉ đóng vai trò là công cụ giáo dục tự phản tư bản thân về những xung đột trong vấn đề lợi ích, không phải thiết bị chẩn đoán chính xác tuyệt đối tâm lý con người. Tâm lý con người vô cùng phức tạp: mỗi cá thể là duy nhất, và không có phân loại “tốt” hay “xấu” một cách tuyệt đối. Tâm lý chịu ảnh hưởng đồng thời từ di truyền, các chất hoá học và chất dẫn truyền thần kinh trong não, môi trường sống, giáo dục, chuẩn mực xã hội, mức độ tự chủ, xung đột nội tâm, cơ chế phòng vệ, trưởng thành tâm lý, bối cảnh xã hội, lịch sử cá nhân,... chứ không chỉ đơn giản là Bản năng, Bản ngã và Siêu ngã.\n\nKhông dùng kết quả để thay thế chẩn đoán, tư vấn hay trị liệu chuyên môn (bác sĩ, nhà tâm lý, bác sĩ tâm thần). \n\nNếu bạn hoặc người thân có dấu hiệu nghiêm trọng (tự hại, ý định gây hại người khác, hoang tưởng, mất liên hệ với thực tại), ngay lập tức dừng sử dụng thước và tìm trợ giúp chuyên nghiệp. \n\n<strong>2. Trung thực khi sử dụng — yếu tố then chốt 🔎🧭</strong> \nKết quả mang tính chủ quan cao, phụ thuộc hoàn toàn vào cách bạn kéo gạt và cách bạn tự đánh giá theo 3 nguyên tắc. \nTrung thực tuyệt đối với chính mình khi trả lời (động cơ, khách quan, đồng cảm) là điều cần thiết. \nNếu cố tình thao tác không thật (để "được điểm" hoặc để kiểm tra thiết bị), kết quả sẽ mất ý nghĩa và có thể dẫn đến hiểu sai về bản thân. \n\n<strong>3. Điểm số không bằng nhân cách con người 🫶 </strong>\nMột hay nhiều lần điểm âm/dương không biến bạn thành “xấu” hay “thánh thiện”. \nĐiểm chỉ nói lên xu hướng một cách tương đối sau 7 ngày tổng kết, không đánh giá giá trị con người. \nHãy đọc điểm như chỉ số tham khảo — bắt đầu cuộc đối thoại với chính mình, không tự buộc tội. \n\n<strong>4. Không dùng thước để phán xét người khác hoặc làm bằng chứng pháp lý ⚖️✋</strong> \nTuyệt đối không dùng thước làm công cụ đánh giá, kết luận, xúc phạm hoặc xử lý người khác (gia đình, đồng nghiệp, học sinh…). \nKhông dùng kết quả làm bằng chứng trong các tranh chấp, tố tụng, quyết định tuyển chọn, sa thải, kỷ luật hoặc các vấn đề pháp lý. \n\n<strong>5. Tránh dùng trong trạng thái cảm xúc cực độ hoặc mất kiểm soát 🌀</strong> \nKhông dùng khi: say rượu, bị kích động mạnh, hoảng loạn, đang trong cơn khủng hoảng, mất ngủ nặng, dùng chất kích thích... \nNhững trạng thái này làm méo mó nhận thức → kết quả sai lệch, đôi khi gây hậu quả cảm xúc xấu cho bạn. \n\n<strong>6. Nhóm người không phù hợp hoặc cần thận trọng đặc biệt ⚠️</strong> \nNgười có rối loạn thần kinh nặng, rối loạn nhân cách nặng, rối loạn tâm thần, ảo giác, động kinh cần không dùng thước để tự đánh giá. \nTrẻ em dưới độ tuổi trưởng thành: chỉ dùng dưới sự giám sát và giải thích của người lớn/giáo viên/chuyên gia. \nNgười đang trong quá trình điều trị tâm lý/thuốc cần hỏi ý kiến chuyên gia trước khi dùng. \n\n<strong>7. Nguy cơ lệ thuộc & tự phán xét — dùng thước có trách nhiệm 🧭 </strong>\nKhông nên dùng thước làm báo cáo giá trị bản thân hàng ngày; nếu lạm dụng sẽ tạo thói quen so sánh và lệ thuộc vào chỉ số. \nTránh chuyển việc “làm tốt/không tốt” thành áp lực: con người phát triển bằng tập luyện & bối cảnh, không phải chỉ số. \n\n<strong>8. Quyền riêng tư & dữ liệu cá nhân 🔐</strong> \nCần minh bạch về việc lưu trữ, ai có thể truy cập, thời gian lưu và xóa dữ liệu qua file Word. \nKhông chia sẻ kết quả với người khác nếu bạn chưa sẵn sàng hoặc chưa thông báo rõ mục đích. \n\n<strong>9. Cách phản ứng khi kết quả cảnh báo (đỏ/cam) </strong>🚨 \nĐừng hoảng loạn — coi đó là tín hiệu để dừng, suy nghĩ và hành động có trách nhiệm. \nLàm ngay: dừng hành động, hít thở, ghi nhật ký ngắn, tìm người tin cậy để trò chuyện. \nNếu kết quả lặp lại liên tục và bạn cảm thấy khó kiểm soát hành vi → tìm chuyên gia tâm lý để được hỗ trợ. \n\n<strong>10. Lưu ý văn hóa & bối cảnh xã hội 🌐 </strong>\nHành vi được đánh giá khác nhau theo văn hóa, luật pháp và bối cảnh. \nKhi di chuyển giữa nền văn hóa hoặc sống ở nước khác, không dùng thước như một tiêu chuẩn tuyệt đối mà cần tham khảo văn hoá/luật địa phương. \n\n<strong>11. Khi nào cần tìm giúp đỡ chuyên nghiệp ☎️</strong> \nBạn có xu hướng tự làm hại hoặc nghĩ người khác sẽ bị tổn thương. \nKết quả thước gây cảm xúc tiêu cực kéo dài (suy sụp, trầm cảm). \nMất khả năng làm việc, học tập hoặc duy trì các mối quan hệ vì hành vi. \n→ Liên hệ bác sĩ tâm thần / nhà trị liệu / đường dây nóng khẩn cấp. \n\n<strong>💬 LỜI NHẮC CUỐI</strong> \n> “Thước không dùng để phán xét – mà để phản tư.” \nHãy dùng nó như gương soi nội tâm để sống tỉnh thức hơn mỗi ngày.'
+const helpContent ='<strong>🎯 ĐỊNH NGHĨA BA TẦNG TÂM LÝ</strong>\n<strong>1) BẢN NĂNG (Id)  – TẦNG NĂNG LƯỢNG NGUYÊN THỦY 💥- ĐÔI KHI LÀ ÁC QUỶ 👿! THÚ TÍNH 🐺!</strong> \nBản năng là phần sâu nhất và nguyên thủy nhất của con người:  \nChứa các nhu cầu sinh học: ăn, ngủ, sinh tồn... 🍖😴 \nChứa các cảm xúc thô: giận dữ, hận thù, ham muốn, chiếm hữu, ghen tuông... 😡🔥 \nKhông biết đúng – sai ⚖️ \nKhông biết đạo đức hay pháp luật \nChỉ muốn thỏa mãn ngay lập tức ⏩ \nHoạt động theo Nguyên tắc Khoái cảm 😋 \nBản năng là động cơ thô, mạnh mẽ nhưng thiếu kiểm soát. \nBản năng không xấu.\nNó là động cơ sống, thúc đẩy sáng tạo, sức mạnh, sinh lực. Nhưng nếu không được điều tiết, nó dễ trở thành xung lực mất kiểm soát.\n→ Cần Bản ngã điều tiết và Siêu ngã định hướng. \n\n<strong>2) BẢN NGÃ (Ego) 🧠🦰👤– CON NGƯỜI THỰC TẾ</strong> \nBản ngã hình thành để giúp con người thích nghi với thực tại: \n- Đánh giá hậu quả, cân nhắc trước khi làm 💡 \n- Tìm cách thỏa mãn Bản năng mà không gây rắc rối \n- Nhận diện luật lệ, giới hạn, rủi ro 🌍 \n- Lập kế hoạch – tổ chức – kiểm soát hành vi 📅🕹️ \nBản ngã vận hành theo Nguyên tắc Hiện thực: điều gì có thể – điều gì được phép – điều gì nên làm.\nBản ngã là bộ điều phối trung tâm: \n- Giảm bớt yêu cầu bốc đồng của Bản năng \n- Giảm sự khắt khe quá mức của Siêu ngã \n- Giữ cho cá nhân sống cân bằng – lý trí – thích nghi với đời sống thực tế \n\n<strong>3) SIÊU NGÃ (Superego) 🕊️– HỆ THỐNG ĐẠO ĐỨC & LÝ TƯỞNG - THIÊN THẦN 😇✨</strong> \nSiêu ngã gồm <strong>Cái Tôi Lý tưởng</strong> (hình ảnh đẹp nhất mà bản thân muốn trở thành) và <strong>Lương tâm</strong> (cảm giác tội lỗi khi làm điều sai trái, tự hào khi làm điều đúng).\nSiêu ngã được tạo nên từ: giáo dục 📚, văn hóa – xã hội 🌏, sự hướng thiện – mong muốn trở nên tốt đẹp hơn 🕊️😇. \nNó vận hành theo Nguyên tắc Đạo đức/Lý tưởng: \n- Đặt ra tiêu chuẩn đúng – sai ⚖️ \n- Tạo cảm giác tội lỗi khi làm sai 💔 \n- Tạo cảm giác tự hào khi làm đúng 🌈 \n- Luôn muốn đạt sự hoàn hảo 🏆 \nSiêu ngã là người giám sát nội tâm: \n→ Khuyến khích điều tốt \n→ Ngăn hành vi sai \n→ Nhưng đôi khi khiến bạn nghiêm khắc quá mức với bản thân \n\n<strong>📏 3 NGUYÊN TẮC ĐỂ GẠT THƯỚC ĐÚNG</strong> \n<strong>1) ĐỘNG CƠ 🚀</strong> \nMục đích thật sự của bạn...? \nPhục vụ bản thân hay người khác...? \nXuất phát từ cảm xúc, lý trí hay đạo đức...? \n\n<strong>2) BẢN CHẤT KHÁCH QUAN 🧐</strong> \nTheo pháp luật – văn hóa – đạo đức - xã hội hiện tại nơi bạn sống, hành vi đó gây hại hay gây lợi...? \nHậu quả nặng hay nhẹ...? Lâu dài hay nhất thời…?\nNgười bình thường sẽ đánh giá thế nào?\n\n<strong>3) ĐỒNG CẢM 🤝</strong>\nTheo suy nghĩ của bạn: Người đối diện sẽ cảm thấy gì khi bạn làm như vậy (hạnh phúc, bình an, vui vẻ, được lợi, đau khổ, bất hạnh, tổn thương…)? \nTác động nhất thời hay dài hạn...? \n\n➡️ Với mỗi nguyên tắc, nếu hành vi khuynh hướng bên nào thì gạt về bên đó một đoạn. Vị trí cuối cùng của thanh gạt = kết quả sau khi gạt dồn vượt qua 3 nguyên tắc. Hoặc có thể nhìn nhận chung 3 nguyên tắc rồi gạt thước 1 lần sau đó cho phù hợp.\n\n❓ NẾU KHÔNG XÁC ĐỊNH ĐƯỢC 1 NGUYÊN TẮC? \nVí dụ: Chưa rõ động cơ, không biết luật, không nghĩ được đến cảm xúc người khác... \n➡️ Không gạt nguyên tắc đó \n\n<strong>🧭 KHI NÀO NÊN DÙNG – KHI NÀO KHÔNG NÊN DÙNG</strong> \n<strong>✅ DÙNG KHI hành vi có:</strong> Cảm xúc, nhận thức, ý thức rõ ràng, liên quan đến đạo đức, có lựa chọn, tác động đến người khác, có xung đột nội tâm, đấu tranh giữa bản năng - lý trí và đạo đức... \nVí dụ: Quyết định nói thật hay nói dối, tha thứ hay trả đũa, chia sẻ hay giữ lợi ích cho mình, nói lời tử tế hay lời làm tổn thương… \n\n<strong>❌ KHÔNG DÙNG KHI:</strong>\n1) Phản xạ sinh học: giật mình, né vật, co tay khi nóng... \n2) Công việc kỹ thuật – logic thuần túy: giải toán, viết code, nghiên cứu khoa học \n3) Thói quen vô thức: đánh răng, tắm, lướt mạng xã hội theo phản xạ... \n4) Hành vi tập thể – xã hội học: nghi lễ tôn giáo, biểu tình, bầu cử, mặc đồng phục... \n5) Hành vi siêu thức / ngoài thời gian – không gian: thiền sâu, sáng tạo đến quên mình, giác ngộ, cận tử... \n6) Người mất khả năng tự chủ: loạn thần, hoang tưởng, say rượu ảo giác, động kinh, bị cưỡng bức - ép buộc - hoàn cảnh chi phối mạnh... \n\n<strong>🔍 LỰA CHỌN GẠT TRƯỚC HAY SAU HÀNH VI</strong> \nGạt trước khi làm: \n→ Giúp bạn cân nhắc kỹ hậu quả \n→ Giảm hành vi bốc đồng \nGạt sau khi làm: \n→ Giúp bạn hiểu mình hơn \n→ Tăng khả năng tự đánh giá \n\n<strong>⚙️ CẤU HÌNH BAN ĐẦU (KHI RESET)</strong> \nThanh gạt đặt ở chính giữa → tượng trưng cho Bản ngã – trạng thái cân bằng ⚖️ \nĐiểm trung bình = 0 🎯 \nĐèn và âm thanh tắt 🔕 \n\n<strong>⏳ CHU KỲ PHẢN TƯ 168 GIỜ (7 NGÀY)</strong> \nSau khi nhấn <strong>Reset</strong> → đồng hồ bắt đầu đếm 168 giờ \nTrong 7 ngày: \nGạt thước không giới hạn số lần \nMỗi lần nhấn → điểm được dùng vào việc tính Điểm trung bình 📊 \n\n<strong>🎚️ CÁCH THỨC GHI NHẬN XU HƯỚNG TÂM LÝ</strong> \nGạt về phía Bản năng (Id) → Điểm âm 💔 \n→ Hành vi thiên về cảm xúc thô – thiếu cân nhắc \nGạt về phía Siêu ngã (Superego) → Điểm dương ❤️ \n→ Hành vi thiên về đạo đức – chuẩn mực – trách nhiệm \nCàng sát hai cực → mức độ càng mạnh \n\n<strong>🧠 XÁC NHẬN ĐIỂM</strong> \nKhi ấn xuống trên thanh gạt: \nHệ thống lưu lại điểm 🗃️ \nĐèn sáng 1 trong 5 màu 🟣🔴🟢🔵 🟡tương ứng với 5 kuynh hướng hành vi (bên dưới)\nPhát tiếng bíp nhẹ 🔊 \n→ Báo hiệu: ghi điểm thành công 🎉, điểm sẽ được tính trong điểm trung bình xuất hiện sau 168 giờ. \nSau khi gạt và tích điểm xong một lần, nhấn nút <strong>Hồi vị</strong> để đưa thanh gạt về vị trí gốc chính giữa ban đầu, chuẩn bị cho lần gạt tiếp theo. \n\n<strong>📣 BÁO CÁO TỔNG KẾT TÂM LÝ SAU 168 GIỜ - 7 NGÀY - 1 TUẦN</strong>\n✨ Mỗi mức điểm trung bình là một “trạng thái nội tâm chủ đạo” kèm hiển thị đèn – âm thanh – khuynh hướng tâm lý ✨\n<strong>🟣 [-10000 → -6667] – BẢN NĂNG MẠNH 😈🐺💥</strong>\nĐèn LED: 🟣 Màu tím nhấp nháy liên tục\nÂm thanh: 🚨 Cảnh báo nặng \n<strong>Bản năng mạnh</strong> 🐺🔥\nLà trạng thái con người hành động theo xung lực nguyên sơ: ăn 🍖, ngủ 😴, khoái cảm 💫, chiếm hữu 🔒, thống trị 🦅, né tránh đau đớn ⚡. Lý trí và đạo đức lúc này yếu thế, khiến ta dễ bốc đồng, giận dữ 😠, tham lam 💰, ghen tị 💢 và hành động thiếu kiểm soát. Năng lượng mạnh nhưng nếu không định hướng sẽ dẫn đến xung đột nội tâm hoặc hành vi sai lệch với xã hội.\n\nLời khuyên 🧭:\n• Dừng lại 5 giây trước khi phản ứng ⏳\n• Ghi nhận cảm xúc, không vội hành động 🧠\n• Tập thể dục 🏃, thiền 🧘 hoặc viết nhật ký 📓 để xả năng lượng thô\n\n<strong>🔴 [-6666 → -3334] – BẢN NĂNG VỪA</strong>⚡️😠😋 \nĐèn LED: 🔴 Đỏ nhấp nháy kịch tính\nÂm thanh: 🎵 kịch tính, bất ổn\n<strong>Bản năng vừa</strong> 🐾⚖️\nỞ mức này, con người vẫn chịu ảnh hưởng bởi ham muốn và nhu cầu tự nhiên, nhưng đã biết kiềm chế một phần nhờ trải nghiệm và ý thức hậu quả. Cảm xúc bộc phát không còn chi phối hoàn toàn: họ biết cân nhắc sơ bộ giữa cái muốn và cái nên, biết chờ đợi ⏳, giữ bình tĩnh 😌 và đặt giới hạn cho bản thân 🚧. Đây là mức bản năng hài hòa hơn, tạo nền tảng cho bản ngã vận hành.\n\nLời khuyên 🧭:\n• Đặt “vạch dừng” trước khi hành động 🚦\n• Lập mục tiêu ngắn hạn để hướng năng lượng vào việc có ích 🎯\n• Phân tích hậu quả trước các quyết định lớn 🧠\n\n<strong>🟢 [-3333 → +3333] – BẢN NGÃ CÂN BẰNG</strong> 👤🌈⚖️🧠\nĐèn LED: 🟢 Xanh lá tĩnh – êm dịu, ổn định\nÂm thanh: 🎉 Nhạc chúc mừng vui tươi\n<strong>Bản ngã</strong> 🧠⚙️\nĐây là trung tâm điều phối tâm lý, nơi con người biết cân bằng giữa nhu cầu bên trong và yêu cầu xã hội. Lý trí đóng vai trò dẫn đường: phân tích 🔎, đánh giá ⚖️, dự đoán 📈 và chọn hành vi phù hợp hoàn cảnh. Bản ngã không loại bỏ bản năng mà định hướng nó một cách thực tế và trưởng thành hơn. Người có bản ngã mạnh hiểu rõ giới hạn của mình 🚧, kiểm soát hành vi, biết thoả hiệp 🤝 và hành động dựa trên mục tiêu dài hạn 🎯. Đây là mức ổn định, giúp sống tự chủ và lý trí nhưng vẫn giữ trọn bản chất con người.\n\nLời khuyên 🧭:\n• Luôn kiểm tra mục tiêu dài hạn trước hành động ngắn hạn 🎯➡️⚡\n• Giữ sự linh hoạt, biết thích nghi khi cần 🌿\n• Rèn kỹ năng ra quyết định: viết – phân tích – chọn phương án tối ưu ✍️📊✔️\n\nThông điệp 🌟: Đây là mục tiêu nhân văn cao nhất của thước đo này: giúp bạn sống hài hòa với chính mình và thế giới.\n\n<strong>🔵 [3334 → 6666] – SIÊU NGÃ VỪA ️✨💖🕊️</strong>\nĐèn LED: 🔵 Xanh dương nhấp nháy nhẹ – tinh khiết\nÂm thanh: 👼 Âm thanh thiên thần trong trẻo\n<strong>Siêu ngã vừa</strong> ✨⚖️\nĐây là mức mà chuẩn mực đạo đức, lý tưởng và giá trị xã hội đã hiện diện rõ ràng trong suy nghĩ và hành động. Con người biết tự điều chỉnh dựa vào lương tâm 💛, phân biệt đúng – sai ✔️❌, có xu hướng hướng thiện nhưng vẫn linh hoạt, không quá khắt khe với bản thân hay người khác. Siêu ngã vừa mang lại sự trách nhiệm, thấu cảm 🤍 và đáng tin cậy, đồng thời tránh được cực đoan đạo đức hoặc áp đặt người khác. Đây là dấu hiệu của nhân cách trưởng thành và giá trị sống vững vàng.\nLời khuyên 🧭:\n• Duy trì lòng nhân ái nhưng nhớ tôn trọng ranh giới cá nhân 🚧\n• Tránh cố gắng “cứu” tất cả mọi người — hãy chọn đúng nơi để giúp 🎯\n• Chấp nhận rằng không ai hoàn hảo, kể cả chính mình 🌿\n\n<strong>🟡 [6667 → 10000] – SIÊU NGÃ MẠNH  🤍😇🌟</strong>\nĐèn LED: 🟡 Vàng nhấp nháy mạnh – nổi bật\nÂm thanh: ⚠️ Cảnh báo\n<strong>Siêu ngã mạnh</strong>🌟🕊️\nĐây là mức mà chuẩn mực đạo đức và lý tưởng trở thành trung tâm định hướng mọi hành vi. Con người sống theo nguyên tắc rõ ràng 📜, đề cao nghĩa vụ và công bằng ⚖️, sẵn sàng hy sinh nhu cầu cá nhân để giữ điều mình cho là đúng. Tuy nhiên, họ dễ tự phê bình quá mức, cảm thấy tội lỗi 😔, hoặc khắt khe với bản thân và người khác. Siêu ngã mạnh mang sự trong sáng và chuẩn mực cao ✨, nhưng nếu thiếu cân bằng từ bản ngã, có thể dẫn đến cứng nhắc hoặc áp lực nội tâm.\n\nLời khuyên 🧭:\n• Nhẹ nhàng hơn với chính mình – không ai hoàn hảo 🌿\n• Chấp nhận lỗi sai như một phần tự nhiên của con người 💛\n• Dành thời gian cho nhu cầu cá nhân: nghỉ ngơi 😌, thư giãn 🎐, vui chơi 🎉\nKhuyến nghị 💡: Hãy cho phép bản thân mềm mại hơn và ưu tiên chính mình nhiều hơn 🤍.\n\n----------------------------\n\nThông điệp cuối 🌈:\nMỗi con số chỉ là sự dịch chuyển năng lượng giữa Bản năng – Bản ngã – Siêu ngã.\nHệ thống không phán xét, chỉ soi chiếu để bạn hiểu mình hơn, điều chỉnh và phát triển một cách hài hòa.\n\n<strong>📅➡️🧠 THEO DÕI LÂU DÀI & PHÁT TRIỂN NHÂN CÁCH</strong>\nHệ thống được thiết kế để không chỉ đo lường tức thời mà còn lưu trữ <strong>Nhật ký Tâm lý</strong> qua từng chu kỳ 7 ngày, giúp người dùng và nhà nghiên cứu quan sát sự biến chuyển của nội tâm theo thời gian:\n\n<strong>1. Quan sát dữ liệu định lượng (Số liệu & Xu hướng):</strong>\nThông qua <strong>Nhật ký</strong>, người dùng xem lại được các chu kỳ đã hoàn thành với các chỉ số cụ thể:\n<strong>Điểm trung bình:</strong> Con số tổng kết chính xác nhất xu hướng tâm lý chủ đạo của bạn trong suốt 1 tuần.\n\n<strong>Màu sắc tâm lý (5 vùng màu):</strong> Nhận diện rõ ràng bản thân đang thiên về vùng nào:\n🟣🔴 Bản năng (Tím/Đỏ - Năng lượng thô/Xung đột)\n🟢 Cân bằng (Xanh lá - Ổn định/Lý trí)\n🔵🟡 Siêu ngã (Xanh dương/Vàng - Đạo đức/Lý tưởng)\n\n<strong>Sự dịch chuyển:</strong> So sánh giữa các chu kỳ để thấy sự tiến bộ (Ví dụ: Từ màu Đỏ nóng nảy chuyển sang màu Xanh lá cân bằng).\n\n<strong>2. Thực hành phản tư sâu (Dữ liệu định tính):</strong>\nSau mỗi chu kỳ, hệ thống yêu cầu người dùng điền vào phiếu phản tư tâm lý gồm 3 câu hỏi cốt lõi:\n<strong>Sự kiện:</strong> Điều gì đáng nhớ nhất trong tuần đã kích hoạt cảm xúc của bạn?\n<strong>Xung đột nội tâm:</strong> Cuộc đấu tranh giữa cái "Tôi muốn" (Bản năng) và cái "Tôi nên" (Siêu ngã) diễn ra như thế nào với điều đó?\n<strong>Bài học:</strong> Rút ra kinh nghiệm từ điều đó để điều chỉnh hành vi cho tuần tiếp theo.\n\n<strong>3. Đánh giá hiệu quả công cụ:</strong>\nĐể phục vụ mục đích nghiên cứu khoa học, người dùng thực hiện đánh giá khách quan cuối mỗi chu kỳ:\n<strong>Chấm điểm Sao (⭐️):</strong>Đánh giá mức độ hiệu quả của thước trong việc giúp bạn: Hiểu bản thân, Thay đổi hành vi và Tính dễ sử dụng.\n<strong>Biểu tượng cảm xúc (Emoji):</strong> Đo lường mức độ hài lòng về cảm xúc sau khi sử dụng.\n\n<strong>4. Xuất báo cáo dữ liệu:</strong>\nNgười dùng có thể nhấn nút <strong>"📄 Xuất file Word"</strong> để tải về toàn bộ hồ sơ tâm lý.\nFile báo cáo bao gồm: Nhật ký hành vi chi tiết + Điểm trung bình + Nội dung phản tư + Dữ liệu đánh giá theo 5 mức.\n\n<em><strong>📝 Lưu ý quan trọng:</strong> Đây là nguồn cứ liệu thực tế quan trọng nhất để tác giả đưa vào bài báo cáo nghiên cứu tham gia cuộc thi KHKT cấp Thành phố, minh chứng cho tính hiệu quả và thực tiễn của sản phẩm.</em>\n\n<strong>⚠️ CẢNH BÁO & LƯU Ý QUAN TRỌNG</strong>\n<strong>1. Không phải công cụ chẩn đoán y tế / tâm lý 🧪🚫</strong> \nThước được thiết kế dựa trên thuyết Phân tâm học - vốn mang tính triết học nhiều hơn khoa học hiện đại (chưa được kiểm chứng, thiếu cơ sở khoa học, mang tính chủ quan cao, thiếu tính phổ quát), chỉ đóng vai trò là công cụ giáo dục tự phản tư bản thân về những xung đột trong vấn đề lợi ích, không phải thiết bị chẩn đoán chính xác tuyệt đối tâm lý con người. Tâm lý con người vô cùng phức tạp: mỗi cá thể là duy nhất, và không có phân loại “tốt” hay “xấu” một cách tuyệt đối. Tâm lý chịu ảnh hưởng đồng thời từ di truyền, các chất hoá học và chất dẫn truyền thần kinh trong não, môi trường sống, giáo dục, chuẩn mực xã hội, mức độ tự chủ, xung đột nội tâm, cơ chế phòng vệ, trưởng thành tâm lý, bối cảnh xã hội, lịch sử cá nhân,... chứ không chỉ đơn giản là Bản năng, Bản ngã và Siêu ngã.\n\nKhông dùng kết quả để thay thế chẩn đoán, tư vấn hay trị liệu chuyên môn (bác sĩ, nhà tâm lý, bác sĩ tâm thần). \n\nNếu bạn hoặc người thân có dấu hiệu nghiêm trọng (tự hại, ý định gây hại người khác, hoang tưởng, mất liên hệ với thực tại), ngay lập tức dừng sử dụng thước và tìm trợ giúp chuyên nghiệp. \n\n<strong>2. Trung thực khi sử dụng — yếu tố then chốt 🔎🧭</strong> \nKết quả mang tính chủ quan cao, phụ thuộc hoàn toàn vào cách bạn kéo gạt và cách bạn tự đánh giá theo 3 nguyên tắc. \nTrung thực tuyệt đối với chính mình khi trả lời (động cơ, khách quan, đồng cảm) là điều cần thiết. \nNếu cố tình thao tác không thật (để "được điểm" hoặc để kiểm tra thiết bị), kết quả sẽ mất ý nghĩa và có thể dẫn đến hiểu sai về bản thân. \n\n<strong>3. Điểm số không bằng nhân cách con người 🫶 </strong>\nMột hay nhiều lần điểm âm/dương không biến bạn thành “xấu” hay “thánh thiện”. \nĐiểm chỉ nói lên xu hướng một cách tương đối sau 7 ngày tổng kết, không đánh giá giá trị con người. \nHãy đọc điểm như chỉ số tham khảo — bắt đầu cuộc đối thoại với chính mình, không tự buộc tội. \n\n<strong>4. Không dùng thước để phán xét người khác hoặc làm bằng chứng pháp lý ⚖️✋</strong> \nTuyệt đối không dùng thước làm công cụ đánh giá, kết luận, xúc phạm hoặc xử lý người khác (gia đình, đồng nghiệp, học sinh…). \nKhông dùng kết quả làm bằng chứng trong các tranh chấp, tố tụng, quyết định tuyển chọn, sa thải, kỷ luật hoặc các vấn đề pháp lý. \n\n<strong>5. Tránh dùng trong trạng thái cảm xúc cực độ hoặc mất kiểm soát 🌀</strong> \nKhông dùng khi: say rượu, bị kích động mạnh, hoảng loạn, đang trong cơn khủng hoảng, mất ngủ nặng, dùng chất kích thích... \nNhững trạng thái này làm méo mó nhận thức → kết quả sai lệch, đôi khi gây hậu quả cảm xúc xấu cho bạn. \n\n<strong>6. Nhóm người không phù hợp hoặc cần thận trọng đặc biệt ⚠️</strong> \nNgười có rối loạn thần kinh nặng, rối loạn nhân cách nặng, rối loạn tâm thần, ảo giác, động kinh cần không dùng thước để tự đánh giá. \nTrẻ em dưới độ tuổi trưởng thành: chỉ dùng dưới sự giám sát và giải thích của người lớn/giáo viên/chuyên gia. \nNgười đang trong quá trình điều trị tâm lý/thuốc cần hỏi ý kiến chuyên gia trước khi dùng. \n\n<strong>7. Nguy cơ lệ thuộc & tự phán xét — dùng thước có trách nhiệm 🧭 </strong>\nKhông nên dùng thước làm báo cáo giá trị bản thân hàng ngày; nếu lạm dụng sẽ tạo thói quen so sánh và lệ thuộc vào chỉ số. \nTránh chuyển việc “làm tốt/không tốt” thành áp lực: con người phát triển bằng tập luyện & bối cảnh, không phải chỉ số. \n\n<strong>8. Quyền riêng tư & dữ liệu cá nhân 🔐</strong> \nCần minh bạch về việc lưu trữ, ai có thể truy cập, thời gian lưu và xóa dữ liệu qua file Word. \nKhông chia sẻ kết quả với người khác nếu bạn chưa sẵn sàng hoặc chưa thông báo rõ mục đích. \n\n<strong>9. Cách phản ứng khi kết quả cảnh báo (tím/vàng) </strong>🚨 \nĐừng hoảng loạn — coi đó là tín hiệu để dừng, suy nghĩ và hành động có trách nhiệm. \nLàm ngay: dừng hành động, hít thở, ghi nhật ký ngắn, tìm người tin cậy để trò chuyện. \nNếu kết quả lặp lại liên tục và bạn cảm thấy khó kiểm soát hành vi → tìm chuyên gia tâm lý để được hỗ trợ. \n\n<strong>10. Lưu ý văn hóa & bối cảnh xã hội 🌐 </strong>\nHành vi được đánh giá khác nhau theo văn hóa, luật pháp và bối cảnh. \nKhi di chuyển giữa nền văn hóa hoặc sống ở nước khác, không dùng thước như một tiêu chuẩn tuyệt đối mà cần tham khảo văn hoá/luật địa phương. \n\n<strong>11. Khi nào cần tìm giúp đỡ chuyên nghiệp ☎️</strong> \nBạn có xu hướng tự làm hại hoặc nghĩ người khác sẽ bị tổn thương. \nKết quả thước gây cảm xúc tiêu cực kéo dài (suy sụp, trầm cảm). \nMất khả năng làm việc, học tập hoặc duy trì các mối quan hệ vì hành vi. \n→ Liên hệ bác sĩ tâm thần / nhà trị liệu / đường dây nóng khẩn cấp. \n\n<strong>💬 LỜI NHẮC CUỐI</strong> \n> “Thước không dùng để phán xét – mà để phản tư.” \nHãy dùng nó như gương soi nội tâm để sống tỉnh thức hơn mỗi ngày.'
 ;
 
 helpBtn.onclick = () => {
@@ -1532,10 +1587,15 @@ window.showReview = function() {
 
     html += `<h3 style="color:#004080; border-bottom:2px solid #eee; padding-bottom:8px;">📜 Nhật ký Tâm lý</h3>`;
 
+    // Tìm đoạn này trong hàm window.showReview và thay thế:
+
     if (!state.finishedCycles || state.finishedCycles.length === 0) {
-        if (state.status !== 'running') {
-            html += `<p style='text-align:center; color:#777; padding: 20px 0;'>Chưa có dữ liệu nào.</p>`;
-        }
+        // Xóa điều kiện kiểm tra state.status để luôn hiện thông báo
+        html += `<div style="text-align:center; padding: 30px 10px; color:#666;">
+                    <div style="font-size: 40px; margin-bottom: 10px;">📭</div>
+                    <p style="margin:0">Chưa có chu kỳ nào đã hoàn thành được lưu.</p>
+                 </div>`;
+        
         box.innerHTML = html;
         return;
     }
@@ -2338,3 +2398,5 @@ if (cycles.length > 0) {
 </script>
 </body>
 </html>
+
+ 
