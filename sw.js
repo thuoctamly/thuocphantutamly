@@ -1,4 +1,4 @@
-const CACHE_NAME = "freud-ruler-v3-offline"; // Đổi tên cache mới
+const CACHE_NAME = "freud-ruler-v4-offline"; // Đổi tên cache mới
 
 const ASSETS = [
   "./",
@@ -60,4 +60,5 @@ self.addEventListener("fetch", event => {
       });
     })
   );
+
 });
