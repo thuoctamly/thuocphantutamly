@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Quản trị Dữ liệu Tâm lý (Admin Pro)</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <style>
+        /* ================================================================= */
+        /* 1. CSS CƠ BẢN & LAYOUT                                           */
+        /* ================================================================= */
+        :root { --bg: #f4f7fb; --primary: #004080; --white: #ffffff; }
+        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background-color: var(--bg); height: 100vh; display: flex; flex-direction: column; }
+        
+        /* Header */
+        header { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        header h1 { margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        /* Toolbar */
+        .toolbar { padding: 15px 20px; background: white; border-bottom: 1px solid #ddd; display: flex; gap: 10px; align-items: center; }
+        input[type="text"] { padding: 10px; border: 1px solid #ccc; border-radius: 6px; width: 300px; font-size: 14px; }
+        button.btn-export { padding: 10px 15px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button.btn-export:hover { background: #219150; }
+
+        /* Bảng Dữ liệu Chính (Database View) */
+        .table-container { flex: 1; overflow: auto; padding: 20px; }
+        table.main-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        table.main-table th { background: #004080; color: white; padding: 12px; text-align: left; position: sticky; top: 0; font-size: 13px; text-transform: uppercase; }
+        table.main-table td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; color: #333; }
+        table.main-table tr:hover { background-color: #f0f7ff; cursor: pointer; }
+        
+        /* Trạng thái Badge */
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; }
+        .bg-purple { background: #e1bee7; color: #4a148c; }
+        .bg-red { background: #ffcdd2; color: #b71c1c; }
+        .bg-green { background: #c8e6c9; color: #1b5e20; }
+        .bg-blue { background: #bbdefb; color: #0d47a1; }
+        .bg-amber { background: #ffecb3; color: #ff6f00; }
+        .bg-gray { background: #f5f5f5; color: #666; }
+
+        /* ================================================================= */
+        /* 2. CSS MODAL (CỬA SỔ CHI TIẾT) - GIẢI QUYẾT VẤN ĐỀ ĐÈ LÊN NHAU   */
+        /* ================================================================= */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px); }
+        .modal-content { background-color: #f4f7fb; margin: 2% auto; padding: 0; border-radius: 12px; width: 90%; max-width: 900px; height: 90%; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.3); animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from {transform: translateY(20px); opacity: 0;} to {transform: translateY(0); opacity: 1;} }
+        
+        .modal-header { padding: 15px 20px; background: #004080; color: white; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+        .close-btn { color: white; font-size: 24px; font-weight: bold; cursor: pointer; }
+        .close-btn:hover { color: #ccc; }
+
+        /* Thông tin Profile trong Modal */
+        .profile-box { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #004080; display: flex; flex-wrap: wrap; gap: 20px; }
+        .profile-item { flex: 1; min-width: 150px; }
+        .profile-label { font-size: 12px; color: #666; font-weight: bold; text-transform: uppercase; }
+        .profile-value { font-size: 16px; color: #333; font-weight: 500; }
+
+        /* ================================================================= */
+        /* 3. CSS CHO CARD NHẬT KÝ (COPY TỪ INDEX.HTML ĐỂ ĐỒNG BỘ)          */
+        /* ================================================================= */
+        .cycle-card { background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 24px; overflow: hidden; border: 1px solid #e1e4e8; }
+        .card-header { padding: 12px 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .card-header strong { font-size: 16px; }
+        
+        /* Bảng Log chi tiết bên trong Card */
+        .log-container { max-height: 200px; overflow-y: auto; border-bottom: 1px solid #eee; background: #ffffff; }
+        .log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .log-table th { position: sticky; top: 0; color: white; padding: 8px; font-weight: 500; text-align: left; }
+        .log-table td { padding: 8px; border-bottom: 1px solid #f1f1f1; color: #333; }
+        .log-table tr:nth-child(even) { background-color: #fcfcfc; }
+
+        /* Phần Feedback */
+        .feedback-area { padding: 16px; background-color: #fdfdfd; }
+        .saved-data { background: #eef9f0; border: 1px solid #c3e6cb; padding: 12px; border-radius: 8px; color: #333; }
+        .saved-item { margin-bottom: 8px; font-size: 14px; }
+        .saved-label { font-weight: bold; color: #155724; display: block; margin-bottom: 2px;}
+
+        /* Màu sắc theo trạng thái (Giống index.html) */
+        .color-purple .card-header { background: #f3e5f5; border-bottom: 2px solid #8e44ad; }
+        .color-purple .card-header strong { color: #8e44ad !important; }
+        .color-purple .log-table th { background: #8e44ad; }
+        
+        .color-red .card-header { background: #ffebee; border-bottom: 2px solid #e74c3c; }
+        .color-red .card-header strong { color: #e74c3c !important; }
+        .color-red .log-table th { background: #e74c3c; }
+
+        .color-green .card-header { background: #e8f5e9; border-bottom: 2px solid #2ecc71; }
+        .color-green .card-header strong { color: #2ecc71 !important; }
+        .color-green .log-table th { background: #2ecc71; }
+
+        .color-blue .card-header { background: #e3f2fd; border-bottom: 2px solid #2980b9; }
+        .color-blue .card-header strong { color: #2980b9 !important; }
+        .color-blue .log-table th { background: #2980b9; }
+
+        .color-amber .card-header { background: #fff8e1; border-bottom: 2px solid #FFD700; }
+        .color-amber .card-header strong { color: #d4ac0d !important; } /* Vàng đậm hơn cho chữ dễ đọc */
+        .color-amber .log-table th { background: #FFD700; color: #333; }
+        
+        /* Stars & Emoji static display */
+        .star-static { color: #f1c40f; font-size: 16px; }
+        .star-gray { color: #ddd; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🔐 Admin - Trung tâm Giám sát Tâm lý</h1>
+        <div style="font-size:12px; opacity: 0.8;">Phiên bản Quản lý Dữ liệu Tập trung</div>
+    </header>
+<div style="background: #fff; padding: 15px 20px; border-bottom: 1px solid #ddd; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+    <div style="display:flex; flex-direction: column; gap: 5px;">
+        <label style="font-weight: bold; font-size: 13px; color: #333;">📅 Thời điểm Bắt đầu Chu kỳ:</label>
+        <input type="datetime-local" id="sysStartTime" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+    </div>
+    
+    <div style="display:flex; flex-direction: column; gap: 5px;">
+        <label style="font-weight: bold; font-size: 13px; color: #333;">⏳ Khoảng thời gian (Phút):</label>
+        <input type="number" id="sysDuration" placeholder="Ví dụ: 10080 (1 tuần)" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 150px;">
+        <small style="color: #666; font-size: 11px;">(1 tuần = 10080 phút)</small>
+    </div>
+
+    <button onclick="updateSystemConfig()" style="padding: 10px 20px; background: #d32f2f; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; height: 40px;">
+        🚀 THIẾT LẬP & ĐỒNG BỘ TOÀN HỆ THỐNG
+    </button>
+    <div id="sysMsg" style="color: green; font-weight: bold; margin-left: 10px; display: none;">✅ Đã cập nhật!</div>
+</div>
+    <div class="toolbar">
+        <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="🔍 Tìm kiếm tên, lớp, ID...">
+        <button class="btn-export" onclick="downloadCSV()">⬇ Xuất Báo Cáo Excel (CSV)</button>
+    </div>
+
+    <div class="table-container">
+        <table class="main-table" id="userTable">
+            <thead>
+                <tr>
+                    <th onclick="sortTable(0)">Mã ID ⬍</th>
+                    <th onclick="sortTable(1)">Họ và Tên ⬍</th>
+                    <th onclick="sortTable(2)">Đối tượng ⬍</th>
+                    <th>Thông tin chi tiết</th>
+                    <th onclick="sortTable(4)">Lần cuối ⬍</th>
+                    <th onclick="sortTable(5)">Trạng thái ⬍</th>
+                    <th onclick="sortTable(6)" style="text-align:center;">Số chu kỳ ⬍</th>
+                </tr>
+            </thead>
+            <tbody id="userTableBody">
+                <tr><td colspan="7" style="text-align:center; padding:20px;">Đang tải dữ liệu từ máy chủ...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 style="margin:0; font-size:18px;" id="modalTitle">Chi tiết Hồ sơ</h2>
+                <span class="close-btn" onclick="closeModal()">×</span>
+            </div>
+            <div class="modal-body" id="modalBody">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        // =================================================================
+        // 1. CẤU HÌNH FIREBASE
+        // =================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBvSBloHwRCvWNzt37ThhxuPqVqgQfohlo",
+            authDomain: "freudruler.firebaseapp.com",
+            databaseURL: "https://freudruler-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "freudruler",
+            storageBucket: "freudruler.firebasestorage.app",
+            messagingSenderId: "907969291678",
+            appId: "1:907969291678:web:e0e99eb6550a31bd42a28f"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.database();
+
+
+// --- LOGIC CẬP NHẬT CẤU HÌNH HỆ THỐNG ---
+const configRef = db.ref('system_config');
+
+// 1. Load cấu hình hiện tại khi mở Admin
+configRef.on('value', (snap) => {
+    const conf = snap.val();
+    if(conf) {
+        // Chuyển timestamp về định dạng input datetime-local
+        if(conf.startTime) {
+            const d = new Date(conf.startTime);
+            // Cần định dạng yyyy-MM-ddThh:mm (chỉnh múi giờ cho đúng VN)
+            const pad = (n) => n < 10 ? '0'+n : n;
+            const localIso = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+            document.getElementById('sysStartTime').value = localIso;
+        }
+        if(conf.durationMinutes) {
+            document.getElementById('sysDuration').value = conf.durationMinutes;
+        }
+    }
+});
+
+// 2. Hàm Gửi cấu hình mới
+function updateSystemConfig() {
+    const tVal = document.getElementById('sysStartTime').value;
+    const dVal = document.getElementById('sysDuration').value;
+
+    if(!tVal || !dVal) {
+        alert("Vui lòng nhập đầy đủ Thời gian bắt đầu và Khoảng thời gian!");
+        return;
+    }
+
+    const startTs = new Date(tVal).getTime();
+    const durationMs = parseInt(dVal) * 60 * 1000; // Đổi phút ra mili giây
+
+    if(confirm("CẢNH BÁO: Hành động này sẽ RESET chu kỳ của TẤT CẢ người dùng về thời điểm bạn chọn. Bạn có chắc chắn không?")) {
+        configRef.set({
+            startTime: startTs,
+            durationMs: durationMs, // Lưu thẳng ms cho client dễ tính
+            durationMinutes: parseInt(dVal),
+            updatedAt: firebase.database.ServerValue.TIMESTAMP
+        }).then(() => {
+            const msg = document.getElementById('sysMsg');
+            msg.style.display = 'block';
+            setTimeout(() => msg.style.display = 'none', 3000);
+        });
+    }
+}
+        const usersRef = db.ref('users');
+
+        let usersData = []; // Lưu trữ mảng user để xử lý
+
+        // =================================================================
+        // 2. XỬ LÝ DỮ LIỆU & RENDER BẢNG CHÍNH
+        // =================================================================
+        
+        // Chuẩn hóa loại người dùng (Student/Resident -> Tiếng Việt)
+        function normalizeUserType(type) {
+            if (!type) return 'Chưa xác định';
+            const t = type.toLowerCase();
+            if (t.includes('student') || t.includes('học sinh')) return 'Học sinh';
+            if (t.includes('resident') || t.includes('người dân')) return 'Người dân';
+            return 'Khác';
+        }
+
+        // Lấy danh sách Users từ Firebase
+        usersRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            usersData = [];
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    const u = data[key];
+                    u.id = key;
+                    
+                    // Chuẩn hóa lịch sử (history là mảng mới, cycles là object cũ)
+                    if (u.history && Array.isArray(u.history)) {
+                        u.processedHistory = u.history;
+                    } else if (u.cycles) {
+                        // Convert object cycles cũ sang mảng
+                        u.processedHistory = Object.keys(u.cycles).map(k => {
+                            const c = u.cycles[k];
+                            // Cố gắng lấy timestamp từ key hoặc data
+                            c.endTime = c.endTime || parseInt(k) || Date.now();
+                            c.avgScore = (c.currentState && c.currentState.score) ? c.currentState.score : 0;
+                            return c;
+                        }).sort((a,b) => b.endTime - a.endTime);
+                    } else {
+                        u.processedHistory = [];
+                    }
+
+                    // Lấy trạng thái mới nhất
+                    if (u.processedHistory.length > 0) {
+                        const last = u.processedHistory[0]; // Mới nhất đầu tiên
+                        u.lastDate = last.endTime;
+                        u.lastScore = last.avgScore;
+                    } else {
+                        u.lastDate = 0;
+                        u.lastScore = null;
+                    }
+                    
+                    usersData.push(u);
+                });
+                renderTable(usersData);
+            } else {
+                document.getElementById('userTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center">Không có dữ liệu</td></tr>';
+            }
+        });
+
+        function renderTable(list) {
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = '';
+
+            list.forEach(user => {
+                const p = user.profile || {};
+                const type = normalizeUserType(p.userType);
+                let detail = '';
+                if (type === 'Học sinh') detail = `${p.className || ''} - ${p.schoolName || ''}`;
+                else if (type === 'Người dân') detail = `${p.phone || ''} - ${p.address || ''}`;
+                else detail = `${p.birthYear || ''}`;
+
+                // Format ngày
+                const dateStr = user.lastDate ? new Date(user.lastDate).toLocaleDateString('vi-VN') : '--';
+                
+                // Badge trạng thái
+                let badge = '<span class="badge bg-gray">Chưa có</span>';
+                if (user.lastScore !== null) {
+                    const s = user.lastScore;
+                    if (s <= -6667) badge = `<span class="badge bg-purple">Bản năng mạnh (${s.toFixed(1)})</span>`;
+                    else if (s <= -3334) badge = `<span class="badge bg-red">Bản năng vừa (${s.toFixed(1)})</span>`;
+                    else if (s >= 6667) badge = `<span class="badge bg-amber">Siêu ngã mạnh (${s.toFixed(1)})</span>`;
+                    else if (s >= 3334) badge = `<span class="badge bg-blue">Siêu ngã vừa (${s.toFixed(1)})</span>`;
+                    else badge = `<span class="badge bg-green">Cân bằng (${s.toFixed(1)})</span>`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.onclick = () => showDetail(user.id);
+                tr.innerHTML = `
+                    <td style="font-family:monospace; color:#555;">${user.id.substring(0,8)}...</td>
+                    <td style="font-weight:bold; color:#004080;">${p.fullName || 'Ẩn danh'}</td>
+                    <td>${type}</td>
+                    <td>${detail}</td>
+                    <td>${dateStr}</td>
+                    <td>${badge}</td>
+                    <td style="text-align:center; font-weight:bold;">${user.processedHistory.length}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // =================================================================
+        // 3. LOGIC HIỂN THỊ CHI TIẾT (PORT TỪ INDEX.HTML SHOWREVIEW)
+        // =================================================================
+        
+        // Helpers
+        function getCategoryInfo(val) {
+            const n = Number(val || 0);
+            if (n <= -6667) return { label: 'Bản năng mạnh', emoji: '😈', class: 'color-purple', color: '#8e44ad' };
+            if (n <= -3334) return { label: 'Bản năng vừa',  emoji: '🔥', class: 'color-red', color: '#e74c3c' };
+            if (n >= 6667)  return { label: 'Siêu ngã mạnh',  emoji: '😇', class: 'color-amber', color: '#FFD700' };
+            if (n >= 3334)  return { label: 'Siêu ngã vừa',   emoji: '🕊️', class: 'color-blue', color: '#2980b9' };
+            return { label: 'Cân bằng', emoji: '👤', class: 'color-green', color: '#2ecc71' };
+        }
+
+        function renderStars(val) {
+            let h = '';
+            for(let i=1; i<=5; i++) h += (i<=val ? '★' : '☆');
+            return `<span class="star-static">${h}</span> <small>(${val || 0}/5)</small>`;
+        }
+        
+        function renderEmoji(val) {
+            const emojis = ['😡', '☹️', '😐', '🙂', '😍'];
+            if (!val || val < 1) return '--';
+            return emojis[val-1];
+        }
+
+        function formatDateTime(ts) {
+            if(!ts) return {time:'', date:''};
+            const d = new Date(ts);
+            return {
+                time: d.toLocaleTimeString('vi-VN', {hour12:false}),
+                date: d.toLocaleDateString('vi-VN')
+            };
+        }
+
+        // Hàm Show Detail Modal
+        function showDetail(userId) {
+            const user = usersData.find(u => u.id === userId);
+            if (!user) return;
+
+            const p = user.profile || {};
+            const type = normalizeUserType(p.userType);
+
+            // 1. Render Header Profile
+            document.getElementById('modalTitle').textContent = `Hồ sơ: ${p.fullName || 'Không tên'} (${userId})`;
+            
+            let profileHTML = `
+                <div class="profile-box">
+                    <div class="profile-item"><div class="profile-label">Họ và Tên</div><div class="profile-value">${p.fullName || '--'}</div></div>
+                    <div class="profile-item"><div class="profile-label">Giới tính</div><div class="profile-value">${p.gender || '--'}</div></div>
+                    <div class="profile-item"><div class="profile-label">Đối tượng</div><div class="profile-value" style="color:#004080;">${type}</div></div>
+            `;
+            
+            if(type === 'Học sinh'){
+                profileHTML += `
+                    <div class="profile-item"><div class="profile-label">Lớp</div><div class="profile-value">${p.className || '--'}</div></div>
+                    <div class="profile-item"><div class="profile-label">Trường</div><div class="profile-value">${p.schoolName || '--'}</div></div>
+                `;
+            } else {
+                profileHTML += `
+                    <div class="profile-item"><div class="profile-label">SĐT</div><div class="profile-value">${p.phone || '--'}</div></div>
+                    <div class="profile-item"><div class="profile-label">Địa chỉ</div><div class="profile-value">${p.address || '--'}</div></div>
+                `;
+            }
+            profileHTML += `</div>`;
+
+            // 2. Render Nhật Ký Cycles (QUAN TRỌNG: Full detail như showReview)
+            let historyHTML = '';
+            
+            if (user.processedHistory.length === 0) {
+                historyHTML = '<div style="text-align:center; padding:30px; color:#888;">Chưa có dữ liệu phản tư nào.</div>';
+            } else {
+                // Duyệt qua từng chu kỳ
+                user.processedHistory.forEach((cycle, index) => {
+                    const cycleNum = user.processedHistory.length - index;
+                    const avgScore = cycle.avgScore;
+                    const catInfo = getCategoryInfo(avgScore);
+                    const startObj = formatDateTime(cycle.startTime || cycle.endTime); 
+                    const fb = cycle.feedback || {};
+
+                    // Card Wrapper với class màu
+                    historyHTML += `<div class="cycle-card ${catInfo.class}">`;
+                    
+                    // Header Card
+                    historyHTML += `
+                        <div class="card-header">
+                            <div class="header-left">
+                                <strong>Chu kỳ ${cycleNum}</strong> 
+                                <span style="font-size:13px; color:#555; font-weight:normal;">(Ghi nhận: ${startObj.time} ${startObj.date})</span>
+                            </div>
+                            <div class="header-right">
+                                <span style="font-size:18px; font-weight:bold;">${catInfo.emoji} ${avgScore > 0 ? '+' : ''}${Number(avgScore).toFixed(1)}</span>
+                            </div>
+                        </div>
+                    `;
+
+                    // Bảng Log (Entries) - ĐÃ BỔ SUNG
+                    historyHTML += `<div class="log-container"><table class="log-table">
+                        <thead><tr><th>Thời gian</th><th>Điểm</th><th>Khuynh hướng</th></tr></thead>
+                        <tbody>`;
+                    
+                    const entries = cycle.entries || [];
+                    if (entries.length === 0) {
+                        historyHTML += `<tr><td colspan="3" style="text-align:center; padding:10px; color:#999;">Không có dữ liệu log chi tiết</td></tr>`;
+                    } else {
+                        entries.forEach(e => {
+                            const val = Number(e.value || 0);
+                            const info = getCategoryInfo(val);
+                            // Lấy màu riêng cho từng dòng log
+                            const valColor = info.color;
+                            const tStr = e.time || (e.ts ? formatDateTime(e.ts).time : '--');
+                            const dStr = e.date || (e.ts ? formatDateTime(e.ts).date : '--');
+                            
+                            historyHTML += `
+                                <tr>
+                                    <td><strong>${tStr}</strong> <span style="color:#888; font-size:11px;">${dStr}</span></td>
+                                    <td style="font-weight:bold; color:${valColor}">${val > 0 ? '+' : ''}${val}</td>
+                                    <td>${info.emoji} ${info.label}</td>
+                                </tr>
+                            `;
+                        });
+                    }
+                    historyHTML += `</tbody></table></div>`;
+
+                    // Phần Phản tư (Feedback)
+                    historyHTML += `<div class="feedback-area">`;
+                    if (fb && (fb.q1 || fb.content)) { // Support cả data cũ (content) và mới (q1,q2,q3)
+                         historyHTML += `
+                            <div class="saved-data">
+                                <div style="margin-bottom:8px; border-bottom:1px solid #c3e6cb; padding-bottom:5px; color:#155724;">✅ <b>Dữ liệu Phản tư</b></div>
+                                
+                                <div class="saved-item"><span class="saved-label">📝 Sự kiện đáng nhớ:</span> ${fb.q1 || fb.content || '--'}</div>
+                                <div class="saved-item"><span class="saved-label">⚔️ Xung đột nội tâm:</span> ${fb.q2 || '--'}</div>
+                                <div class="saved-item"><span class="saved-label">💡 Bài học rút ra:</span> ${fb.q3 || '--'}</div>
+                                
+                                <hr style="border-top:1px dashed #abc; margin:10px 0;">
+                                
+                                <div style="display:flex; flex-wrap:wrap; gap:15px;">
+                                    <div class="saved-item">📱 Giao diện: ${renderStars(fb.r1)}</div>
+                                    <div class="saved-item">🧠 Hiểu bản thân: ${renderStars(fb.r2)}</div>
+                                    <div class="saved-item">🦋 Thay đổi HV: ${renderStars(fb.r3)}</div>
+                                </div>
+                                <div style="margin-top:6px; padding-top:6px; border-top:1px dotted #c3e6cb; display:flex; gap:20px;">
+                                    <div class="saved-item">😊 Hài lòng KQ: <b>${renderEmoji(fb.satResult)}</b></div>
+                                    <div class="saved-item">📏 Hài lòng Thước: <b>${renderEmoji(fb.satTool)}</b></div>
+                                </div>
+                            </div>
+                         `;
+                    } else {
+                        historyHTML += `<div style="padding:10px; border:1px dashed #ccc; text-align:center; color:#777; border-radius:6px; background:#f9f9f9;">Người dùng chưa viết nhật ký cho chu kỳ này.</div>`;
+                    }
+                    historyHTML += `</div></div>`; // End card
+                });
+            }
+
+            // Render vào Modal
+            document.getElementById('modalBody').innerHTML = profileHTML + `<h3 style="color:#004080; border-bottom:2px solid #eee; padding-bottom:10px;">📜 Lịch sử Hoạt động</h3>` + historyHTML;
+            document.getElementById('detailModal').style.display = "block";
+        }
+
+        // Modal Logic
+        function closeModal() {
+            document.getElementById('detailModal').style.display = "none";
+        }
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('detailModal')) {
+                closeModal();
+            }
+        }
+
+        // =================================================================
+        // 4. SORT & SEARCH & EXPORT
+        // =================================================================
+        let sortCol = -1;
+        let sortAsc = true;
+
+        function sortTable(colIndex) {
+            sortAsc = (sortCol === colIndex) ? !sortAsc : true;
+            sortCol = colIndex;
+
+            usersData.sort((a, b) => {
+                let v1, v2;
+                const pA = a.profile || {};
+                const pB = b.profile || {};
+                
+                switch(colIndex) {
+                    case 0: v1 = a.id; v2 = b.id; break;
+                    case 1: v1 = pA.fullName || ''; v2 = pB.fullName || ''; break;
+                    case 2: v1 = normalizeUserType(pA.userType); v2 = normalizeUserType(pB.userType); break;
+                    case 4: v1 = a.lastDate || 0; v2 = b.lastDate || 0; break;
+                    case 5: v1 = a.lastScore || 0; v2 = b.lastScore || 0; break;
+                    case 6: v1 = a.processedHistory.length; v2 = b.processedHistory.length; break;
+                    default: return 0;
+                }
+
+                if (v1 < v2) return sortAsc ? -1 : 1;
+                if (v1 > v2) return sortAsc ? 1 : -1;
+                return 0;
+            });
+            renderTable(usersData);
+        }
+
+        function filterTable() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = usersData.filter(u => {
+                const p = u.profile || {};
+                const searchStr = `${u.id} ${p.fullName} ${p.className} ${p.schoolName} ${p.phone} ${p.address}`.toLowerCase();
+                return searchStr.includes(term);
+            });
+            renderTable(filtered);
+        }
+
+        function downloadCSV() {
+            let csv = "\uFEFFID,Họ tên,Loại,Chi tiết,Ngày cuối,Điểm cuối,Số chu kỳ\n";
+            usersData.forEach(u => {
+                const p = u.profile || {};
+                const type = normalizeUserType(p.userType);
+                let detail = type === 'Học sinh' ? (p.className + ' - ' + p.schoolName) : (p.phone + ' - ' + p.address);
+                const date = u.lastDate ? new Date(u.lastDate).toLocaleDateString() : '';
+                
+                // Escape CSV quotes
+                const clean = (txt) => `"${(txt || '').toString().replace(/"/g, '""')}"`;
+                csv += `${clean(u.id)},${clean(p.fullName)},${clean(type)},${clean(detail)},${date},${u.lastScore || ''},${u.processedHistory.length}\n`;
+            });
+            
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            saveAs(blob, "DuLieu_TamLy_Admin.csv");
+        }
+    </script>
+</body>
+</html>
