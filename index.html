@@ -721,6 +721,37 @@ sysConfigRef.on('value', (snap) => {
 // Biến lưu ID người dùng
 let USER_ID = localStorage.getItem('FREUD_USER_ID') || null;
 let USER_INFO = JSON.parse(localStorage.getItem('FREUD_USER_INFO') || 'null');
+// --- [BẮT ĐẦU] BẢN VÁ TỰ ĐỘNG KHÔI PHỤC DỮ LIỆU CŨ ---
+(function silentMigrateID() {
+    if (!USER_ID) return; // Chưa đăng nhập thì bỏ qua
+
+    // Kiểm tra xem ID này đã được chuyển đổi sang dạng duy nhất chưa
+    // Chúng ta dùng một 'cờ' (flag) trong localStorage để đánh dấu
+    const isMigrated = localStorage.getItem('FREUD_DATA_RECOVERED_V2');
+
+    if (!isMigrated) {
+        console.log("♻️ Đang tự động tách ID để bảo vệ dữ liệu...");
+
+        // 1. Tạo hậu tố ngẫu nhiên để đảm bảo không bao giờ trùng nữa
+        const uniqueSuffix = "_rec_" + Math.random().toString(36).substring(2, 7) + Date.now().toString().slice(-4);
+        
+        // 2. Tạo ID mới dựa trên ID cũ
+        // Ví dụ cũ: nguyenvanan_12a1
+        // ID mới: nguyenvanan_12a1_rec_ab1236789
+        const newId = USER_ID + uniqueSuffix;
+
+        // 3. Cập nhật ngay lập tức vào biến toàn cục và bộ nhớ trình duyệt
+        USER_ID = newId;
+        localStorage.setItem('FREUD_USER_ID', newId);
+        
+        // 4. Đánh dấu là đã xử lý xong (để lần sau reload không bị đổi ID nữa)
+        localStorage.setItem('FREUD_DATA_RECOVERED_V2', 'true');
+
+        // Khi hàm syncDataToServer() chạy ở phía dưới, nó sẽ dùng USER_ID mới này
+        // và đẩy toàn bộ lịch sử gạt thước cũ lên một nhánh mới trên Firebase.
+    }
+})();
+// --- [KẾT THÚC] BẢN VÁ ---
 const CURRENT_CYCLE_KEY = 'freudRuler_current_cycle'; // Khóa lưu trạng thái chu kỳ đang chạy
 const FINISHED_CYCLES_KEY = 'freudRuler_cycles_history'; // Khóa lưu LỊCH SỬ VĨNH VIỄN
 
@@ -809,6 +840,8 @@ function logEntry(value) {
 
     state.entries.push(entry);
     saveCurrentCycle();
+    document.getElementById('reviewModal').style.display = 'block';
+showReview();
 }
 
 function playBeep(freq=880, dur=0.12, vol=0.15){
@@ -1028,7 +1061,13 @@ btnLogin.onclick = () => {
 
     // 4. Tạo ID và Lưu
     // ID = ten_uniquePart (VD: nguyenvanan_12a1_thptchuyen hoặc nguyenvanb_0912345678)
-    const rawId = sanitizeId(name) + "_" + uniquePart;
+    // 4. Tạo ID và Lưu (ĐÃ SỬA: Thêm hậu tố ngẫu nhiên để không bị trùng lặp)
+    // Tạo một chuỗi ngẫu nhiên 6 ký tự
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const timestamp = Date.now().toString().slice(-4); // Lấy 4 số cuối của thời gian để chắc chắn không trùng
+
+    // ID mới = ten_uniquePart_random (VD: nguyenvana_12a1_xxxxx_1234)
+    const rawId = sanitizeId(name) + "_" + uniquePart + "_" + randomSuffix + timestamp;
     
     USER_ID = rawId;
     USER_INFO = finalProfile;
@@ -1798,7 +1837,7 @@ window.saveFeedback = function(index) {
         alert("❌ Có lỗi xảy ra khi lưu: " + e.message);
     }
 };
-
+window.editingState = {}; // Lưu trạng thái đang sửa của từng chu kỳ
 // ==========================================================
 // HÀM HIỂN THỊ REVIEW (ĐÃ SỬA LỖI INDEX LỆCH PHA)
 // ==========================================================
@@ -1930,115 +1969,126 @@ window.showReview = function() {
     // realIndex sẽ luôn luôn đúng với vị trí trong mảng state.finishedCycles
     
     const cardHtmlList = state.finishedCycles.map((cycle, realIndex) => {
-        const cycleNum = state.finishedCycles.length - realIndex;
-        const startObj = formatDateTime(cycle.startTime);
-        const fb = cycle.feedback || {};
-        const isDone = (fb.r1 > 0); 
+        // --- BẮT ĐẦU ĐOẠN CODE THAY THẾ CHO map ---
+    const cycleNum = state.finishedCycles.length - realIndex;
+    const startObj = formatDateTime(cycle.startTime);
+    const fb = cycle.feedback || {};
+    
+    // [SỬA] Logic kiểm tra: Đã làm xong VÀ KHÔNG đang trong trạng thái sửa
+    const isEditing = window.editingState[realIndex] === true;
+    const isDone = (fb.r1 > 0) && !isEditing; 
 
-        // Logic màu sắc
-        const v = cycle.avgScore;
-        let scoreClass = 'color-green';
-        let iconTrend = '👤';
-        if (v <= -6667) { scoreClass = 'color-purple'; iconTrend = '😈'; }
-        else if (v <= -3334) { scoreClass = 'color-red'; iconTrend = '🔥'; }
-        else if (v >= 6667) { scoreClass = 'color-amber'; iconTrend = '😇'; }
-        else if (v >= 3334) { scoreClass = 'color-blue'; iconTrend = '🕊️'; }
+    // Logic màu sắc (giữ nguyên)
+    const v = cycle.avgScore;
+    let scoreClass = 'color-green';
+    let iconTrend = '👤';
+    if (v <= -6667) { scoreClass = 'color-purple'; iconTrend = '😈'; }
+    else if (v <= -3334) { scoreClass = 'color-red'; iconTrend = '🔥'; }
+    else if (v >= 6667) { scoreClass = 'color-amber'; iconTrend = '😇'; }
+    else if (v >= 3334) { scoreClass = 'color-blue'; iconTrend = '🕊️'; }
 
-        let card = `<div class="cycle-card ${scoreClass}">`;
-        
-        // Header Card
-        card += `<div class="card-header">
-            <div class="header-left">
-                <strong>Chu kỳ ${cycleNum}</strong> <span style="font-size:13px; color:#777;"><span class="neutral-text">(từ ${startObj.time} ${startObj.date})</span></span>
+    let card = `<div class="cycle-card ${scoreClass}">`;
+    
+    // Header Card (Giữ nguyên)
+    card += `<div class="card-header">
+        <div class="header-left">
+            <strong>Chu kỳ ${cycleNum}</strong> <span style="font-size:13px; color:#777;"><span class="neutral-text">(từ ${startObj.time} ${startObj.date})</span></span>
+        </div>
+        <div class="header-right ${scoreClass}">
+            ${iconTrend} ${cycle.avgScore > 0 ? '+' : ''}${cycle.avgScore.toFixed(1)}
+        </div>
+       </div>`;
+
+    // Table Logs (Giữ nguyên)
+    card += `<div class="log-container"><table class="log-table">
+                <thead><tr><th>Thời gian</th><th>Điểm</th><th>Khuynh hướng</th></tr></thead>
+                <tbody>`;
+    const entries = cycle.entries || [];
+    if(entries.length === 0) {
+        card += `<tr><td colspan="3" style="text-align:center; padding:10px;">Không có dữ liệu</td></tr>`;
+    } else {
+        entries.forEach(e => {
+           const val = Number(e.value||0);
+           const info = getCategoryFromValue(val);
+           let pColor = '#2ecc71';
+           if (val <= -6667) pColor = '#8e44ad';
+           else if (val <= -3334) pColor = '#e74c3c';
+           else if (val >= 6667) pColor = '#FFD700';
+           else if (val >= 3334) pColor = '#2980b9';
+
+           const tStr = e.time || (e.ts ? formatDateTime(e.ts).time : '');
+           const dStr = e.date || (e.ts ? formatDateTime(e.ts).date : ''); // [SỬA] Thêm date vào đây nếu muốn hiển thị ở Index
+
+           card += `<tr>
+                <td><strong>${tStr}</strong><br><span style="font-size:11px; color:#888;">${dStr}</span></td>
+                <td style="font-weight:bold; color:${pColor}">${val>0?'+':''}${val}</td>
+                <td>${info.emoji} ${info.label}</td>
+            </tr>`;
+        });
+    }
+    card += `</tbody></table></div>`;
+
+    // Phần Phản tư
+    card += `<div class="feedback-area">`;
+    
+    if (isDone) {
+        // --- GIAO DIỆN ĐÃ LƯU (READ ONLY) ---
+        card += `<div class="saved-data">
+            <div style="margin-bottom:8px; border-bottom:1px solid #c3e6cb; padding-bottom:5px; display:flex; justify-content:space-between; align-items:center;">
+                <span>✅ <b>Dữ liệu đã lưu</b></span>
+                <button onclick="window.enableEdit(${realIndex})" style="border:1px solid #2196f3; background:#fff; color:#2196f3; border-radius:4px; cursor:pointer; font-size:12px; padding:2px 8px;">✏️ Chỉnh sửa</button>
             </div>
-            <div class="header-right ${scoreClass}">
-                ${iconTrend} ${cycle.avgScore > 0 ? '+' : ''}${cycle.avgScore.toFixed(1)}
+            <div class="saved-item"><span class="saved-label">📝 Sự kiện đáng nhớ nhất:</span> ${fb.q1}</div>
+            <div class="saved-item"><span class="saved-label">⚔️ Xung đột nội tâm:</span> ${fb.q2}</div>
+            <div class="saved-item"><span class="saved-label">💡 Bài học:</span> ${fb.q3}</div>
+            <hr style="border-top:1px dashed #abc; margin:10px 0;">
+            <div class="saved-item">📱 Giao diện dễ dùng: ${renderStarStatic(fb.r1)}</div>
+            <div class="saved-item">🧠 Giúp hiểu bản thân: ${renderStarStatic(fb.r2)}</div>
+            <div class="saved-item">🦋 Giúp thay đổi hành vi: ${renderStarStatic(fb.r3)}</div>
+            <div style="margin-top:6px; padding-top:6px; border-top:1px dotted #c3e6cb">
+                <div class="saved-item">😊 Hài lòng kết quả: ${renderEmojiResult(fb.satResult)}</div>
+                <div class="saved-item">📏 Hài lòng cây thước: ${renderEmojiResult(fb.satTool)}</div>
             </div>
-           </div>`;
-
-        // Table Logs
-        card += `<div class="log-container"><table class="log-table">
-                    <thead><tr><th>Thời gian</th><th>Điểm</th><th>Khuynh hướng</th></tr></thead>
-                    <tbody>`;
-        
-        const entries = cycle.entries || [];
-        if(entries.length === 0) {
-            card += `<tr><td colspan="3" style="text-align:center; padding:10px;">Không có dữ liệu</td></tr>`;
-        } else {
-            entries.forEach(e => {
-               const val = Number(e.value||0);
-               const info = getCategoryFromValue(val);
-               let pColor = '#2ecc71';
-               if (val <= -6667) pColor = '#8e44ad';
-               else if (val <= -3334) pColor = '#e74c3c';
-               else if (val >= 6667) pColor = '#FFD700';
-               else if (val >= 3334) pColor = '#2980b9';
-
-               const tStr = e.time || (e.ts ? formatDateTime(e.ts).time : '');
-               const dStr = e.date || (e.ts ? formatDateTime(e.ts).date : '');
-
-               card += `<tr>
-                    <td><strong>${tStr}</strong><br><span style="font-size:11px; color:#888;">${dStr}</span></td>
-                    <td style="font-weight:bold; color:${pColor}">${val>0?'+':''}${val}</td>
-                    <td>${info.emoji} ${info.label}</td>
-                </tr>`;
-            });
-        }
-        card += `</tbody></table></div>`;
-
-        // Phần Phản tư
-        card += `<div class="feedback-area">`;
-        if (isDone) {
-            // ĐÃ LƯU
-            card += `<div class="saved-data">
-                <div style="margin-bottom:8px; border-bottom:1px solid #c3e6cb; padding-bottom:5px;">✅ <b>Dữ liệu đã lưu</b></div>
-                <div class="saved-item"><span class="saved-label">📝 Sự kiện đáng nhớ nhất:</span> ${fb.q1}</div>
-                <div class="saved-item"><span class="saved-label">⚔️ Xung đột nội tâm:</span> ${fb.q2}</div>
-                <div class="saved-item"><span class="saved-label">💡 Bài học:</span> ${fb.q3}</div>
-                <hr style="border-top:1px dashed #abc; margin:10px 0;">
-                <div class="saved-item">📱 Giao diện dễ dùng: ${renderStarStatic(fb.r1)}</div>
-                <div class="saved-item">🧠 Giúp hiểu bản thân: ${renderStarStatic(fb.r2)}</div>
-                <div class="saved-item">🦋 Giúp thay đổi hành vi: ${renderStarStatic(fb.r3)}</div>
-                <div style="margin-top:6px; padding-top:6px; border-top:1px dotted #c3e6cb">
-                    <div class="saved-item">😊 Hài lòng kết quả: ${renderEmojiResult(fb.satResult)}</div>
-                    <div class="saved-item">📏 Hài lòng cây thước: ${renderEmojiResult(fb.satTool)}</div>
+        </div>`;
+    } else {
+        // --- GIAO DIỆN NHẬP LIỆU (EDIT FORM) ---
+        // [SỬA] Fill dữ liệu cũ vào form nếu đang sửa (fb.q1 || '')
+        card += `<div style="margin-bottom:10px; color:#004080; font-weight:bold; display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:18px;">✍️</span> ${isEditing ? 'Chỉnh sửa Nhật ký' : 'Viết Nhật ký'}
                 </div>
-            </div>`;
-        } else {
-            // CHƯA LƯU -> HIỆN FORM VỚI ID CHUẨN XÁC
-            card += `<div style="margin-bottom:10px; color:#004080; font-weight:bold; display:flex; align-items:center; gap:6px;">
-                        <span style="font-size:18px;">✍️</span> Viết Nhật ký 
-                    </div>
-                    <p style='text-align: center; color: #0d47a1; background: #f4f7fb; padding: 8px; border-radius: 4px; font-size: 13px; border-left: 5px solid #2196f3; line-height: 1.4;'>
-                        <em>🔬 Hãy thật trung thực. Dữ liệu chính xác là chìa khóa cho kết quả nghiên cứu Khoa học Kĩ thuật.</em>
-                    </p>
-            
-            <label class="fb-label">1. Sự kiện gì đáng nhớ nhất đã xảy ra trong tuần này?</label>
-            <textarea id="q1-${realIndex}" class="fb-input" rows="2" placeholder='Ví dụ: Cãi nhau với bạn bè...'></textarea>
-            
-            <label class="fb-label">2. Đấu tranh nội tâm (Bản năng vs Siêu ngã)?</label>
-            <textarea id="q2-${realIndex}" class="fb-input" rows="2" placeholder='Ví dụ: Muốn mắng chửi cho hả giận nhưng lương tâm cắn rứt...'></textarea>
-
-            <label class="fb-label">3. Bài học rút ra?</label>
-            <textarea id="q3-${realIndex}" class="fb-input" rows="2" placeholder='Ví dụ: Cần kiềm chế cảm xúc hơn...'></textarea>
-            
-            <div class="rating-box">
-                <div style="font-size:12px; margin-bottom:5px; color:#666; font-style:italic;">Đánh giá hiệu quả:</div>
-                <div class="star-row"><span>📱 Giao diện dễ dùng</span> ${renderStarWidget(realIndex, 'r1', 0)}</div>
-                <div class="star-row"><span>🧠 Giúp hiểu bản thân</span> ${renderStarWidget(realIndex, 'r2', 0)}</div>
-                <div class="star-row"><span>🦋 Giúp thay đổi hành vi</span> ${renderStarWidget(realIndex, 'r3', 0)}</div>
-
-                <div class="emoji-section">
-                    <div style="font-size:12px; margin-bottom:5px; color:#666; font-style:italic;">Mức độ hài lòng với:</div>
-                    <div class="emoji-row"><span>📊 Kết quả</span> ${renderEmojiWidget(realIndex, 'satResult', 0)}</div>
-                    <div class="emoji-row"><span>📏 Thước</span> ${renderEmojiWidget(realIndex, 'satTool', 0)}</div>
-                </div>
-            </div>
-            <button class="btn-save-research" onclick="window.saveFeedback(${realIndex})">💾 LƯU DỮ LIỆU VÀO NHẬT KÝ</button>`;
-        }
+                <p style='text-align: center; color: #0d47a1; background: #f4f7fb; padding: 8px; border-radius: 4px; font-size: 13px; border-left: 5px solid #2196f3; line-height: 1.4;'>
+                    <em>🔬 Hãy thật trung thực. Dữ liệu chính xác là chìa khóa cho kết quả nghiên cứu.</em>
+                </p>
         
-        card += `</div></div>`; // End feedback area & card
-        return card;
+        <label class="fb-label">1. Sự kiện gì đáng nhớ nhất đã xảy ra trong tuần này?</label>
+        <textarea id="q1-${realIndex}" class="fb-input" rows="2" placeholder='Ví dụ: Cãi nhau với bạn bè...'>${fb.q1 || ''}</textarea>
+        
+        <label class="fb-label">2. Đấu tranh nội tâm (Bản năng vs Siêu ngã)?</label>
+        <textarea id="q2-${realIndex}" class="fb-input" rows="2" placeholder='Ví dụ: Muốn mắng chửi...'>${fb.q2 || ''}</textarea>
+
+        <label class="fb-label">3. Bài học rút ra?</label>
+        <textarea id="q3-${realIndex}" class="fb-input" rows="2" placeholder='Ví dụ: Cần kiềm chế...'>${fb.q3 || ''}</textarea>
+        
+        <div class="rating-box">
+            <div style="font-size:12px; margin-bottom:5px; color:#666; font-style:italic;">Đánh giá hiệu quả:</div>
+            <div class="star-row"><span>📱 Giao diện dễ dùng</span> ${renderStarWidget(realIndex, 'r1', fb.r1 || 0)}</div>
+            <div class="star-row"><span>🧠 Giúp hiểu bản thân</span> ${renderStarWidget(realIndex, 'r2', fb.r2 || 0)}</div>
+            <div class="star-row"><span>🦋 Giúp thay đổi hành vi</span> ${renderStarWidget(realIndex, 'r3', fb.r3 || 0)}</div>
+
+            <div class="emoji-section">
+                <div style="font-size:12px; margin-bottom:5px; color:#666; font-style:italic;">Mức độ hài lòng với:</div>
+                <div class="emoji-row"><span>📊 Kết quả</span> ${renderEmojiWidget(realIndex, 'satResult', fb.satResult || 0)}</div>
+                <div class="emoji-row"><span>📏 Thước</span> ${renderEmojiWidget(realIndex, 'satTool', fb.satTool || 0)}</div>
+            </div>
+        </div>
+        <button class="btn-save-research" onclick="window.saveFeedback(${realIndex})">💾 LƯU DỮ LIỆU VÀO NHẬT KÝ</button>
+        ${isEditing ? `<div style="text-align:center; margin-top:10px;"><a href="#" onclick="window.cancelEdit(${realIndex}); return false;" style="color:#666; font-size:13px;">Hủy bỏ</a></div>` : ''}
+        `;
+    }
+    
+    card += `</div></div>`;
+    return card;
+// --- KẾT THÚC ĐOẠN CODE map ---
     });
 
     // Đảo ngược danh sách thẻ HTML để Chu kỳ 1 (Cũ nhất) hiển thị trên cùng (hoặc bỏ reverse nếu muốn ngược lại)
@@ -2083,6 +2133,7 @@ window.saveFeedback = function(index) {
     };
     
     saveFinishedCycles(state.finishedCycles);
+window.editingState[index] = false;
     alert("✅ Đã lưu thành công!");
     showReview(); 
 }
@@ -2156,7 +2207,30 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
+// [SỬA] Hàm bật chế độ sửa
+window.enableEdit = function(index) {
+    // Nạp dữ liệu cũ vào biến tạm để Widget Sao/Emoji hiển thị đúng khi render lại
+    const cycle = state.finishedCycles[index];
+    const fb = cycle.feedback || {};
+    
+    // Khởi tạo biến tạm nếu chưa có
+    if(!window.tempRatings[index]) window.tempRatings[index] = {};
+    if(!window.tempEmojis[index]) window.tempEmojis[index] = {};
 
+    // Gán giá trị cũ
+    window.tempRatings[index] = { r1: fb.r1, r2: fb.r2, r3: fb.r3 };
+    window.tempEmojis[index] = { satResult: fb.satResult, satTool: fb.satTool };
+
+    // Bật cờ sửa
+    window.editingState[index] = true;
+    showReview(); // Vẽ lại giao diện
+};
+
+// [SỬA] Hàm hủy sửa
+window.cancelEdit = function(index) {
+    window.editingState[index] = false;
+    showReview();
+}
 </script>
 <audio id="sndAmber" src="alert-amber.mp3" preload="auto"></audio>
 <audio id="sndRed"   src="alert-red.mp3" preload="auto"></audio>
