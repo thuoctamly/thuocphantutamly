@@ -552,20 +552,151 @@ width: 100%;
 
 /* Ẩn nút Reset vì Admin đã quản lý */
 #resetBtn { display: none !important; }
+/* Style cho bảng khảo sát chuyên nghiệp */
+.survey-card {
+    background: #ffffff;
+    border: 2px solid #e0e6ed;
+    border-radius: 15px;
+    padding: 20px;
+    margin-top: 25px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+.survey-q-title {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 10px;
+    display: block;
+}
+.likert-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+.likert-tile {
+    flex: 1;
+    border: 1px solid #ddd;
+    background: #f8f9fa;
+    padding: 10px 5px;
+    text-align: center;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+/* Giao diện nút Có/Không */
+.binary-container {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+.bin-btn {
+    flex: 1;
+    padding: 15px;
+    border: 2px solid #ddd;
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1.1em;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+/* Hiệu ứng khi chọn CÓ */
+.bin-btn.yes:hover, .bin-btn.yes.active {
+    background: #2ed573;
+    color: white;
+    border-color: #2ed573;
+}
+/* Hiệu ứng khi chọn KHÔNG */
+.bin-btn.no:hover, .bin-btn.no.active {
+    background: #ff4757;
+    color: white;
+    border-color: #ff4757;
+}
+/* --- [BẮT ĐẦU] CSS TÙY BIẾN GIAO DIỆN MỚI --- */
 
+/* 1. Ẩn giao diện Thước và Nút điều khiển cũ */
+.container, .controls {
+    display: none !important; 
+}
+/* Lưu ý: Nếu bạn muốn giữ màn hình Login lúc đầu thì xóa ", #loginModal" ở dòng trên đi */
+
+/* 2. Biến Modal Nhật ký thành Màn hình chính */
+#reviewModal {
+    display: block !important; /* Luôn hiện */
+    position: static !important; /* Không trôi nổi nữa */
+    width: 100% !important;
+    height: auto !important;
+    transform: none !important;
+    top: auto !important;
+    left: auto !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 10px !important;
+    background: #f4f7fb !important; /* Màu nền trang nhã */
+    max-width: 600px;
+    margin: 0 auto; /* Căn giữa màn hình */
+    z-index: 1 !important;
+}
+
+/* Ẩn nút đóng modal vì giờ nó là trang chính */
+#closeReview { display: none !important; }
+
+/* 3. Style cho Câu hỏi Khảo sát Mới */
+.survey-group-btn {
+    width: 100%;
+    padding: 15px;
+    margin-bottom: 10px;
+    border: 2px solid #ddd;
+    background: #fff;
+    border-radius: 10px;
+    font-weight: bold;
+    color: #555;
+    cursor: pointer;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.survey-group-btn.active {
+    border-color: #004080;
+    background: #e3f2fd;
+    color: #004080;
+}
+.survey-question-row {
+    background: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+.q-text { font-weight: 600; color: #333; margin-bottom: 10px; display: block; line-height: 1.4; }
+.yn-options { display: flex; gap: 10px; }
+.yn-btn {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #f9f9f9;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+}
+.yn-btn:hover { background: #eee; }
+
+/* Trạng thái đã chọn */
+.yn-btn.yes.selected { background: #2ecc71; color: white; border-color: #2ecc71; }
+.yn-btn.no.selected { background: #e74c3c; color: white; border-color: #e74c3c; }
+
+/* --- [KẾT THÚC] CSS TÙY BIẾN --- */
 </style>
 </head>
 <body>
-<div id="helpModal" style="display:none; position:fixed; top:50%; left:50%; transform: translate(-50%, -50%); width:90%; height:85%; background:#fff; border:2px solid #004080; padding:12px; overflow:auto; z-index:1000; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
-  <button id="closeHelp" style="margin-bottom:8px;">Đóng</button>
-  <pre id="helpText" style="white-space: pre-wrap; font-size:18px;"></pre>
-</div>
-<!-- Modal Nhật ký -->
-<div id="reviewModal" style="
-  display:none; position:fixed; top:50%; left:50%; transform: translate(-50%, -50%); width:90%; height:85%;
-  background:#fff; border:2px solid #004080; padding:12px; overflow:auto;
-  z-index:1000; box-shadow:0 4px 12px rgba(0,0,0,0.3);
-">
 <div id="loginModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center;">
   <div style="background:#fff; padding:25px; border-radius:12px; width:90%; max-width:400px; text-align:center; border: 2px solid #004080; max-height: 90vh; overflow-y: auto;">
     <h3 style="color:#004080; margin-top:0;">🔐 THÔNG TIN NGƯỜI DÙNG THƯỚC (được anh Đạt bảo mật tuyệt đối) </h3>
@@ -600,10 +731,54 @@ width: 100%;
     <button id="btnLogin" class="btn" style="background:#004080; color:white; width:100%; padding:12px; font-weight:bold; margin-top:10px;">XÁC NHẬN VÀ GỬI THÔNG TIN</button>
 </div>
 </div>
+<div id="helpModal" style="display:none; position:fixed; top:50%; left:50%; transform: translate(-50%, -50%); width:90%; height:85%; background:#fff; border:2px solid #004080; padding:12px; overflow:auto; z-index:1000; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+  <button id="closeHelp" style="margin-bottom:8px;">Đóng</button>
+  <pre id="helpText" style="white-space: pre-wrap; font-size:18px;"></pre>
+</div>
+<!-- Modal Nhật ký -->
+<div id="reviewModal" style="
+  display:none; position:fixed; top:50%; left:50%; transform: translate(-50%, -50%); width:90%; height:85%;
+  background:#fff; border:2px solid #004080; padding:12px; overflow:auto;
+  z-index:1000; box-shadow:0 4px 12px rgba(0,0,0,0.3);
+">
+
   <button id="closeReview" style="margin-bottom:8px;">Đóng</button>
 <div id="reviewContent" style="font-size:16px;"></div>
-</div>
+<div class="survey-card" id="final-survey">
+    <h3 style="text-align:center; color:#004080; text-transform:uppercase; margin-bottom:5px;">📋 KHẢO SÁT TỔNG KẾT</h3>
+    <h4 style="text-align:center; color:#1a73e8; margin-top:0;">Dự án Thước Tâm lý</h4>
+    
+    <div id="step-choose-group">
+        <p style="text-align:center; font-weight:bold;">👇 Bạn thuộc nhóm nào?</p>
+        <button class="survey-group-btn" id="grp-user" onclick="loadSurveyQuestions('user')">
+            <span>👤</span>
+            <div style="text-align:left;">
+                <div>Người dùng thước</div>
+                <small style="font-weight:normal;">(Đã gạt ít nhất 1 lần)</small>
+            </div>
+        </button>
+        <button class="survey-group-btn" id="grp-control" onclick="loadSurveyQuestions('control')">
+            <span>🚫</span>
+            <div style="text-align:left;">
+                <div>Người không dùng thước</div>
+                <small style="font-weight:normal;">(Chưa gạt lần nào)</small>
+            </div>
+        </button>
+    </div>
 
+    <div id="survey-questions-container" style="display:none; margin-top:20px;">
+        <div id="questions-list"></div>
+        
+        <button id="finalSubmitBtn" onclick="submitNewSurvey()" 
+            style="width:100%; padding:15px; background:#004080; color:white; border:none; border-radius:10px; font-size:1.1em; font-weight:bold; cursor:pointer; margin-top:15px; box-shadow: 0 4px 10px rgba(0,64,128,0.3);">
+            GỬI KẾT QUẢ NGHIÊN CỨU 🚀
+        </button>
+        
+        <div style="text-align:center; margin-top:10px;">
+            <a href="#" onclick="resetSurveyGroup(); return false;" style="color:#888; font-size:12px;">← Chọn lại nhóm đối tượng</a>
+        </div>
+    </div>
+</div>
 <div class="container">
   <header>
     <div>
@@ -640,7 +815,6 @@ width: 100%;
     </div>
   </div>
 
-  <!-- vùng cố định ở phải để hiển thị trend (luôn sát mép phải) -->
   <div id="statusRight" style="min-width:0; display:flex; align-items:center; justify-content:flex-end;"></div>
 </div>
 
@@ -975,7 +1149,42 @@ function initPresence() {
         lastSeenRef.set(firebase.database.ServerValue.TIMESTAMP);
     });
 }
+// --- [MỚI] LẮNG NGHE SỰ CHỈNH SỬA TỪ ADMIN ---
+// Đặt đoạn này sau khi đã có USER_ID (ví dụ trong hàm initPresence hoặc ngay sau khi xác định USER_ID)
 
+function listenForAdminChanges() {
+    if (!db || !USER_ID) return;
+    
+    const historyRef = db.ref('users/' + USER_ID + '/history');
+    
+    historyRef.on('value', (snapshot) => {
+        const remoteHistory = snapshot.val();
+        
+        // Nếu trên server có dữ liệu lịch sử
+        if (remoteHistory) {
+            console.log("🔄 Phát hiện Admin đã chỉnh sửa dữ liệu. Đang đồng bộ...");
+            
+            // 1. Cập nhật vào biến state
+            state.finishedCycles = remoteHistory;
+            
+            // 2. Lưu đè vào LocalStorage của người dùng
+            saveFinishedCycles(remoteHistory);
+            
+            // 3. Nếu đang mở modal Nhật ký thì vẽ lại ngay lập tức
+            const reviewModal = document.getElementById('reviewModal');
+            if (reviewModal && reviewModal.style.display === 'block') {
+                showReview(); 
+            }
+        }
+    });
+}
+
+// GỌI HÀM NÀY:
+// Bạn tìm chỗ nào sau khi login thành công hoặc reload trang có USER_ID
+// Ví dụ: Thêm dòng này vào cuối hàm (IIFE) migrate ID hoặc sau khi `initPresence()`
+if (USER_ID) {
+    listenForAdminChanges();
+}
 // 4. Xử lý Đăng nhập
 const loginModal = document.getElementById('loginModal');
 const btnLogin = document.getElementById('btnLogin');
@@ -1002,6 +1211,18 @@ function toggleUserFields() {
         residentDiv.style.display = 'block';
     }
 }
+function getBrowserName() {
+        const agent = navigator.userAgent.toLowerCase();
+        if (agent.includes("zalo")) return "Zalo Web";
+        if (agent.includes("samsung")) return "Samsung Internet";
+        if (agent.includes("chrome") && !agent.includes("edge") && !agent.includes("opr")) return "Chrome";
+        if (agent.includes("safari") && !agent.includes("chrome")) return "Safari";
+        if (agent.includes("firefox")) return "Firefox";
+        if (agent.includes("edge")) return "Edge";
+        if (agent.includes("opr") || agent.includes("opera")) return "Opera";
+        if (agent.includes("coccoc")) return "Cốc Cốc";
+        return "Khác";
+    }
 btnLogin.onclick = () => {
     // 1. Lấy dữ liệu chung
     const type = document.getElementById('inpUserType').value;
@@ -1031,14 +1252,17 @@ btnLogin.onclick = () => {
         }
         uniquePart = sanitizeId(cls) + "_" + sanitizeId(school);
         
-        finalProfile = {
-            fullName: name,
-            gender: gender,
-            userType: 'Học sinh',
-            className: cls,   // Giữ field này để Admin cũ vẫn hiện Lớp
-            schoolName: school,
-            birthYear: ''     // Bỏ trống hoặc để chuỗi rỗng
-        };
+       finalProfile = {
+        fullName: name,
+        gender: gender,
+        userType: type === 'student' ? 'Học sinh' : 'Người dân',
+        className: type === 'student' ? cls : 'Người dân',
+        schoolName: type === 'student' ? school : '',
+        phone: type === 'resident' ? phone : '',
+        address: type === 'resident' ? address : '',
+        birthYear: '',
+        browser: getBrowserName() // [THÊM DÒNG NÀY] Lưu tên trình duyệt
+    };
 
     } else {
         // Logic cho Người dân
@@ -1624,8 +1848,7 @@ startCycle();
   startCycle();
 };
 */
-const helpContent ='<strong>🎯 ĐỊNH NGHĨA BA TẦNG TÂM LÝ</strong>\n<strong>1) BẢN NĂNG (Id)  – TẦNG NĂNG LƯỢNG NGUYÊN THỦY 💥- ĐÔI KHI LÀ ÁC QUỶ 👿! THÚ TÍNH 🐺!</strong> \nBản năng là phần sâu nhất và nguyên thủy nhất của con người:  \nChứa các nhu cầu sinh học: ăn, ngủ, sinh tồn... 🍖😴 \nChứa các cảm xúc thô: giận dữ, hận thù, ham muốn, chiếm hữu, ghen tuông... 😡🔥 \nKhông biết đúng – sai ⚖️ \nKhông biết đạo đức hay pháp luật \nChỉ muốn thỏa mãn ngay lập tức ⏩ \nHoạt động theo Nguyên tắc Khoái cảm 😋 \nBản năng là động cơ thô, mạnh mẽ nhưng thiếu kiểm soát. \nBản năng không xấu.\nNó là động cơ sống, thúc đẩy sáng tạo, sức mạnh, sinh lực. Nhưng nếu không được điều tiết, nó dễ trở thành xung lực mất kiểm soát.\n→ Cần Bản ngã điều tiết và Siêu ngã định hướng. \n\n<strong>2) BẢN NGÃ (Ego) 🧠🦰👤– CON NGƯỜI THỰC TẾ</strong> \nBản ngã hình thành để giúp con người thích nghi với thực tại: \n- Đánh giá hậu quả, cân nhắc trước khi làm 💡 \n- Tìm cách thỏa mãn Bản năng mà không gây rắc rối \n- Nhận diện luật lệ, giới hạn, rủi ro 🌍 \n- Lập kế hoạch – tổ chức – kiểm soát hành vi 📅🕹️ \nBản ngã vận hành theo Nguyên tắc Hiện thực: điều gì có thể – điều gì được phép – điều gì nên làm.\nBản ngã là bộ điều phối trung tâm: \n- Giảm bớt yêu cầu bốc đồng của Bản năng \n- Giảm sự khắt khe quá mức của Siêu ngã \n- Giữ cho cá nhân sống cân bằng – lý trí – thích nghi với đời sống thực tế \n\n<strong>3) SIÊU NGÃ (Superego) 🕊️– HỆ THỐNG ĐẠO ĐỨC & LÝ TƯỞNG - THIÊN THẦN 😇✨</strong> \nSiêu ngã gồm <strong>Cái Tôi Lý tưởng</strong> (hình ảnh đẹp nhất mà bản thân muốn trở thành) và <strong>Lương tâm</strong> (cảm giác tội lỗi khi làm điều sai trái, tự hào khi làm điều đúng).\nSiêu ngã được tạo nên từ: giáo dục 📚, văn hóa – xã hội 🌏, sự hướng thiện – mong muốn trở nên tốt đẹp hơn 🕊️😇. \nNó vận hành theo Nguyên tắc Đạo đức/Lý tưởng: \n- Đặt ra tiêu chuẩn đúng – sai ⚖️ \n- Tạo cảm giác tội lỗi khi làm sai 💔 \n- Tạo cảm giác tự hào khi làm đúng 🌈 \n- Luôn muốn đạt sự hoàn hảo 🏆 \nSiêu ngã là người giám sát nội tâm: \n→ Khuyến khích điều tốt \n→ Ngăn hành vi sai \n→ Nhưng đôi khi khiến bạn nghiêm khắc quá mức với bản thân \n\n<strong>📏 3 NGUYÊN TẮC ĐỂ GẠT THƯỚC ĐÚNG</strong> \n<strong>1) ĐỘNG CƠ 🚀</strong> \nMục đích thật sự của bạn...? \nPhục vụ bản thân hay người khác...? \nXuất phát từ cảm xúc, lý trí hay đạo đức...? \n\n<strong>2) BẢN CHẤT KHÁCH QUAN 🧐</strong> \nTheo pháp luật – văn hóa – đạo đức - xã hội hiện tại nơi bạn sống, hành vi đó gây hại hay gây lợi...? \nHậu quả nặng hay nhẹ...? Lâu dài hay nhất thời…?\nNgười bình thường sẽ đánh giá thế nào?\n\n<strong>3) ĐỒNG CẢM 🤝</strong>\nTheo suy nghĩ của bạn: Người đối diện sẽ cảm thấy gì khi bạn làm như vậy (hạnh phúc, bình an, vui vẻ, được lợi, đau khổ, bất hạnh, tổn thương…)? \nTác động nhất thời hay dài hạn...? \n\n➡️ Với mỗi nguyên tắc, nếu hành vi khuynh hướng bên nào thì gạt về bên đó một đoạn. Vị trí cuối cùng của thanh gạt = kết quả sau khi gạt dồn vượt qua 3 nguyên tắc. Hoặc có thể nhìn nhận chung 3 nguyên tắc rồi gạt thước 1 lần sau đó cho phù hợp.\n\n❓ NẾU KHÔNG XÁC ĐỊNH ĐƯỢC 1 NGUYÊN TẮC? \nVí dụ: Chưa rõ động cơ, không biết luật, không nghĩ được đến cảm xúc người khác... \n➡️ Không gạt nguyên tắc đó \n\n<strong>🧭 KHI NÀO NÊN DÙNG – KHI NÀO KHÔNG NÊN DÙNG</strong> \n<strong>✅ DÙNG KHI hành vi có:</strong> Cảm xúc, nhận thức, ý thức rõ ràng, liên quan đến đạo đức, có lựa chọn, tác động đến người khác, có xung đột nội tâm, đấu tranh giữa bản năng - lý trí và đạo đức... \nVí dụ: Quyết định nói thật hay nói dối, tha thứ hay trả đũa, chia sẻ hay giữ lợi ích cho mình, nói lời tử tế hay lời làm tổn thương… \n\n<strong>❌ KHÔNG DÙNG KHI:</strong>\n1) Phản xạ sinh học: giật mình, né vật, co tay khi nóng... \n2) Công việc kỹ thuật – logic thuần túy: giải toán, viết code, nghiên cứu khoa học \n3) Thói quen vô thức: đánh răng, tắm, lướt mạng xã hội theo phản xạ... \n4) Hành vi tập thể – xã hội học: nghi lễ tôn giáo, biểu tình, bầu cử, mặc đồng phục... \n5) Hành vi siêu thức / ngoài thời gian – không gian: thiền sâu, sáng tạo đến quên mình, giác ngộ, cận tử... \n6) Người mất khả năng tự chủ: loạn thần, hoang tưởng, say rượu ảo giác, động kinh, bị cưỡng bức - ép buộc - hoàn cảnh chi phối mạnh... \n\n<strong>🔍 LỰA CHỌN GẠT TRƯỚC HAY SAU HÀNH VI</strong> \nGạt trước khi làm: \n→ Giúp bạn cân nhắc kỹ hậu quả \n→ Giảm hành vi bốc đồng \nGạt sau khi làm: \n→ Giúp bạn hiểu mình hơn \n→ Tăng khả năng tự đánh giá \n\n<strong>⚙️ CẤU HÌNH BAN ĐẦU (KHI RESET)</strong> \nThanh gạt đặt ở chính giữa → tượng trưng cho Bản ngã – trạng thái cân bằng ⚖️ \nĐiểm trung bình = 0 🎯 \nĐèn và âm thanh tắt 🔕 \n\n<strong>⏳ CHU KỲ PHẢN TƯ 168 GIỜ (7 NGÀY)</strong> \nSau khi nhấn <strong>Reset</strong> → đồng hồ bắt đầu đếm 168 giờ \nTrong 7 ngày: \nGạt thước không giới hạn số lần \nMỗi lần nhấn → điểm được dùng vào việc tính Điểm trung bình 📊 \n\n<strong>🎚️ CÁCH THỨC GHI NHẬN XU HƯỚNG TÂM LÝ</strong> \nGạt về phía Bản năng (Id) → Điểm âm 💔 \n→ Hành vi thiên về cảm xúc thô – thiếu cân nhắc \nGạt về phía Siêu ngã (Superego) → Điểm dương ❤️ \n→ Hành vi thiên về đạo đức – chuẩn mực – trách nhiệm \nCàng sát hai cực → mức độ càng mạnh \n\n<strong>🧠 XÁC NHẬN ĐIỂM</strong> \nKhi ấn xuống trên thanh gạt: \nHệ thống lưu lại điểm 🗃️ \nĐèn sáng 1 trong 5 màu 🟣🔴🟢🔵 🟡tương ứng với 5 kuynh hướng hành vi (bên dưới)\nPhát tiếng bíp nhẹ 🔊 \n→ Báo hiệu: ghi điểm thành công 🎉, điểm sẽ được tính trong điểm trung bình xuất hiện sau 168 giờ. \nSau khi gạt và tích điểm xong một lần, nhấn nút <strong>Hồi vị</strong> để đưa thanh gạt về vị trí gốc chính giữa ban đầu, chuẩn bị cho lần gạt tiếp theo. \n\n<strong>📣 BÁO CÁO TỔNG KẾT TÂM LÝ SAU 168 GIỜ - 7 NGÀY - 1 TUẦN</strong>\n✨ Mỗi mức điểm trung bình là một “trạng thái nội tâm chủ đạo” kèm hiển thị đèn – âm thanh – khuynh hướng tâm lý ✨\n<strong>🟣 [-10000 → -6667] – BẢN NĂNG MẠNH 😈🐺💥</strong>\nĐèn LED: 🟣 Màu tím nhấp nháy liên tục\nÂm thanh: 🚨 Cảnh báo nặng \n<strong>Bản năng mạnh</strong> 🐺🔥\nLà trạng thái con người hành động theo xung lực nguyên sơ: ăn 🍖, ngủ 😴, khoái cảm 💫, chiếm hữu 🔒, thống trị 🦅, né tránh đau đớn ⚡. Lý trí và đạo đức lúc này yếu thế, khiến ta dễ bốc đồng, giận dữ 😠, tham lam 💰, ghen tị 💢 và hành động thiếu kiểm soát. Năng lượng mạnh nhưng nếu không định hướng sẽ dẫn đến xung đột nội tâm hoặc hành vi sai lệch với xã hội.\n\nLời khuyên 🧭:\n• Dừng lại 5 giây trước khi phản ứng ⏳\n• Ghi nhận cảm xúc, không vội hành động 🧠\n• Tập thể dục 🏃, thiền 🧘 hoặc viết nhật ký 📓 để xả năng lượng thô\n\n<strong>🔴 [-6666 → -3334] – BẢN NĂNG VỪA</strong>⚡️😠😋 \nĐèn LED: 🔴 Đỏ nhấp nháy kịch tính\nÂm thanh: 🎵 kịch tính, bất ổn\n<strong>Bản năng vừa</strong> 🐾⚖️\nỞ mức này, con người vẫn chịu ảnh hưởng bởi ham muốn và nhu cầu tự nhiên, nhưng đã biết kiềm chế một phần nhờ trải nghiệm và ý thức hậu quả. Cảm xúc bộc phát không còn chi phối hoàn toàn: họ biết cân nhắc sơ bộ giữa cái muốn và cái nên, biết chờ đợi ⏳, giữ bình tĩnh 😌 và đặt giới hạn cho bản thân 🚧. Đây là mức bản năng hài hòa hơn, tạo nền tảng cho bản ngã vận hành.\n\nLời khuyên 🧭:\n• Đặt “vạch dừng” trước khi hành động 🚦\n• Lập mục tiêu ngắn hạn để hướng năng lượng vào việc có ích 🎯\n• Phân tích hậu quả trước các quyết định lớn 🧠\n\n<strong>🟢 [-3333 → +3333] – BẢN NGÃ CÂN BẰNG</strong> 👤🌈⚖️🧠\nĐèn LED: 🟢 Xanh lá tĩnh – êm dịu, ổn định\nÂm thanh: 🎉 Nhạc chúc mừng vui tươi\n<strong>Bản ngã</strong> 🧠⚙️\nĐây là trung tâm điều phối tâm lý, nơi con người biết cân bằng giữa nhu cầu bên trong và yêu cầu xã hội. Lý trí đóng vai trò dẫn đường: phân tích 🔎, đánh giá ⚖️, dự đoán 📈 và chọn hành vi phù hợp hoàn cảnh. Bản ngã không loại bỏ bản năng mà định hướng nó một cách thực tế và trưởng thành hơn. Người có bản ngã mạnh hiểu rõ giới hạn của mình 🚧, kiểm soát hành vi, biết thoả hiệp 🤝 và hành động dựa trên mục tiêu dài hạn 🎯. Đây là mức ổn định, giúp sống tự chủ và lý trí nhưng vẫn giữ trọn bản chất con người.\n\nLời khuyên 🧭:\n• Luôn kiểm tra mục tiêu dài hạn trước hành động ngắn hạn 🎯➡️⚡\n• Giữ sự linh hoạt, biết thích nghi khi cần 🌿\n• Rèn kỹ năng ra quyết định: viết – phân tích – chọn phương án tối ưu ✍️📊✔️\n\nThông điệp 🌟: Đây là mục tiêu nhân văn cao nhất của thước đo này: giúp bạn sống hài hòa với chính mình và thế giới.\n\n<strong>🔵 [3334 → 6666] – SIÊU NGÃ VỪA ️✨💖🕊️</strong>\nĐèn LED: 🔵 Xanh dương nhấp nháy nhẹ – tinh khiết\nÂm thanh: 👼 Âm thanh thiên thần trong trẻo\n<strong>Siêu ngã vừa</strong> ✨⚖️\nĐây là mức mà chuẩn mực đạo đức, lý tưởng và giá trị xã hội đã hiện diện rõ ràng trong suy nghĩ và hành động. Con người biết tự điều chỉnh dựa vào lương tâm 💛, phân biệt đúng – sai ✔️❌, có xu hướng hướng thiện nhưng vẫn linh hoạt, không quá khắt khe với bản thân hay người khác. Siêu ngã vừa mang lại sự trách nhiệm, thấu cảm 🤍 và đáng tin cậy, đồng thời tránh được cực đoan đạo đức hoặc áp đặt người khác. Đây là dấu hiệu của nhân cách trưởng thành và giá trị sống vững vàng.\nLời khuyên 🧭:\n• Duy trì lòng nhân ái nhưng nhớ tôn trọng ranh giới cá nhân 🚧\n• Tránh cố gắng “cứu” tất cả mọi người — hãy chọn đúng nơi để giúp 🎯\n• Chấp nhận rằng không ai hoàn hảo, kể cả chính mình 🌿\n\n<strong>🟡 [6667 → 10000] – SIÊU NGÃ MẠNH  🤍😇🌟</strong>\nĐèn LED: 🟡 Vàng nhấp nháy mạnh – nổi bật\nÂm thanh: ⚠️ Cảnh báo\n<strong>Siêu ngã mạnh</strong>🌟🕊️\nĐây là mức mà chuẩn mực đạo đức và lý tưởng trở thành trung tâm định hướng mọi hành vi. Con người sống theo nguyên tắc rõ ràng 📜, đề cao nghĩa vụ và công bằng ⚖️, sẵn sàng hy sinh nhu cầu cá nhân để giữ điều mình cho là đúng. Tuy nhiên, họ dễ tự phê bình quá mức, cảm thấy tội lỗi 😔, hoặc khắt khe với bản thân và người khác. Siêu ngã mạnh mang sự trong sáng và chuẩn mực cao ✨, nhưng nếu thiếu cân bằng từ bản ngã, có thể dẫn đến cứng nhắc hoặc áp lực nội tâm.\n\nLời khuyên 🧭:\n• Nhẹ nhàng hơn với chính mình – không ai hoàn hảo 🌿\n• Chấp nhận lỗi sai như một phần tự nhiên của con người 💛\n• Dành thời gian cho nhu cầu cá nhân: nghỉ ngơi 😌, thư giãn 🎐, vui chơi 🎉\nKhuyến nghị 💡: Hãy cho phép bản thân mềm mại hơn và ưu tiên chính mình nhiều hơn 🤍.\n\n----------------------------\n\nThông điệp cuối 🌈:\nMỗi con số chỉ là sự dịch chuyển năng lượng giữa Bản năng – Bản ngã – Siêu ngã.\nHệ thống không phán xét, chỉ soi chiếu để bạn hiểu mình hơn, điều chỉnh và phát triển một cách hài hòa.\n\n<strong>📅➡️🧠 THEO DÕI LÂU DÀI & PHÁT TRIỂN NHÂN CÁCH</strong>\nHệ thống được thiết kế để không chỉ đo lường tức thời mà còn lưu trữ <strong>Nhật ký Tâm lý</strong> qua từng chu kỳ 7 ngày, giúp người dùng và nhà nghiên cứu quan sát sự biến chuyển của nội tâm theo thời gian:\n\n<strong>1. Quan sát dữ liệu định lượng (Số liệu & Xu hướng):</strong>\nThông qua <strong>Nhật ký</strong>, người dùng xem lại được các chu kỳ đã hoàn thành với các chỉ số cụ thể:\n<strong>Điểm trung bình:</strong> Con số tổng kết chính xác nhất xu hướng tâm lý chủ đạo của bạn trong suốt 1 tuần.\n\n<strong>Màu sắc tâm lý (5 vùng màu):</strong> Nhận diện rõ ràng bản thân đang thiên về vùng nào:\n🟣🔴 Bản năng (Tím/Đỏ - Năng lượng thô/Xung đột)\n🟢 Cân bằng (Xanh lá - Ổn định/Lý trí)\n🔵🟡 Siêu ngã (Xanh dương/Vàng - Đạo đức/Lý tưởng)\n\n<strong>Sự dịch chuyển:</strong> So sánh giữa các chu kỳ để thấy sự tiến bộ (Ví dụ: Từ màu Đỏ nóng nảy chuyển sang màu Xanh lá cân bằng).\n\n<strong>2. Thực hành phản tư sâu (Dữ liệu định tính):</strong>\nSau mỗi chu kỳ, hệ thống yêu cầu người dùng điền vào phiếu phản tư tâm lý gồm 3 câu hỏi cốt lõi:\n<strong>Sự kiện:</strong> Điều gì đáng nhớ nhất trong tuần đã kích hoạt cảm xúc của bạn?\n<strong>Xung đột nội tâm:</strong> Cuộc đấu tranh giữa cái "Tôi muốn" (Bản năng) và cái "Tôi nên" (Siêu ngã) diễn ra như thế nào với điều đó?\n<strong>Bài học:</strong> Rút ra kinh nghiệm từ điều đó để điều chỉnh hành vi cho tuần tiếp theo.\n\n<strong>3. Đánh giá hiệu quả công cụ:</strong>\nĐể phục vụ mục đích nghiên cứu khoa học, người dùng thực hiện đánh giá khách quan cuối mỗi chu kỳ:\n<strong>Chấm điểm Sao (⭐️):</strong>Đánh giá mức độ hiệu quả của thước trong việc giúp bạn: Hiểu bản thân, Thay đổi hành vi và Tính dễ sử dụng.\n<strong>Biểu tượng cảm xúc (Emoji):</strong> Đo lường mức độ hài lòng về cảm xúc sau khi sử dụng.\n\n<strong>4. Xuất báo cáo dữ liệu:</strong>\nNgười dùng có thể nhấn nút <strong>"📄 Xuất file Word"</strong> để tải về toàn bộ hồ sơ tâm lý.\nFile báo cáo bao gồm: Nhật ký hành vi chi tiết + Điểm trung bình + Nội dung phản tư + Dữ liệu đánh giá theo 5 mức.\n\n<em><strong>📝 Lưu ý quan trọng:</strong> Đây là nguồn cứ liệu thực tế quan trọng nhất để tác giả đưa vào bài báo cáo nghiên cứu tham gia cuộc thi KHKT cấp Thành phố, minh chứng cho tính hiệu quả và thực tiễn của sản phẩm.</em>\n\n<strong>⚠️ CẢNH BÁO & LƯU Ý QUAN TRỌNG</strong>\n<strong>1. Không phải công cụ chẩn đoán y tế / tâm lý 🧪🚫</strong> \nThước được thiết kế dựa trên thuyết Phân tâm học - vốn mang tính triết học nhiều hơn khoa học hiện đại (chưa được kiểm chứng, thiếu cơ sở khoa học, mang tính chủ quan cao, thiếu tính phổ quát), chỉ đóng vai trò là công cụ giáo dục tự phản tư bản thân về những xung đột trong vấn đề lợi ích, không phải thiết bị chẩn đoán chính xác tuyệt đối tâm lý con người. Tâm lý con người vô cùng phức tạp: mỗi cá thể là duy nhất, và không có phân loại “tốt” hay “xấu” một cách tuyệt đối. Tâm lý chịu ảnh hưởng đồng thời từ di truyền, các chất hoá học và chất dẫn truyền thần kinh trong não, môi trường sống, giáo dục, chuẩn mực xã hội, mức độ tự chủ, xung đột nội tâm, cơ chế phòng vệ, trưởng thành tâm lý, bối cảnh xã hội, lịch sử cá nhân,... chứ không chỉ đơn giản là Bản năng, Bản ngã và Siêu ngã.\n\nKhông dùng kết quả để thay thế chẩn đoán, tư vấn hay trị liệu chuyên môn (bác sĩ, nhà tâm lý, bác sĩ tâm thần). \n\nNếu bạn hoặc người thân có dấu hiệu nghiêm trọng (tự hại, ý định gây hại người khác, hoang tưởng, mất liên hệ với thực tại), ngay lập tức dừng sử dụng thước và tìm trợ giúp chuyên nghiệp. \n\n<strong>2. Trung thực khi sử dụng — yếu tố then chốt 🔎🧭</strong> \nKết quả mang tính chủ quan cao, phụ thuộc hoàn toàn vào cách bạn kéo gạt và cách bạn tự đánh giá theo 3 nguyên tắc. \nTrung thực tuyệt đối với chính mình khi trả lời (động cơ, khách quan, đồng cảm) là điều cần thiết. \nNếu cố tình thao tác không thật (để "được điểm" hoặc để kiểm tra thiết bị), kết quả sẽ mất ý nghĩa và có thể dẫn đến hiểu sai về bản thân. \n\n<strong>3. Điểm số không bằng nhân cách con người 🫶 </strong>\nMột hay nhiều lần điểm âm/dương không biến bạn thành “xấu” hay “thánh thiện”. \nĐiểm chỉ nói lên xu hướng một cách tương đối sau 7 ngày tổng kết, không đánh giá giá trị con người. \nHãy đọc điểm như chỉ số tham khảo — bắt đầu cuộc đối thoại với chính mình, không tự buộc tội. \n\n<strong>4. Không dùng thước để phán xét người khác hoặc làm bằng chứng pháp lý ⚖️✋</strong> \nTuyệt đối không dùng thước làm công cụ đánh giá, kết luận, xúc phạm hoặc xử lý người khác (gia đình, đồng nghiệp, học sinh…). \nKhông dùng kết quả làm bằng chứng trong các tranh chấp, tố tụng, quyết định tuyển chọn, sa thải, kỷ luật hoặc các vấn đề pháp lý. \n\n<strong>5. Tránh dùng trong trạng thái cảm xúc cực độ hoặc mất kiểm soát 🌀</strong> \nKhông dùng khi: say rượu, bị kích động mạnh, hoảng loạn, đang trong cơn khủng hoảng, mất ngủ nặng, dùng chất kích thích... \nNhững trạng thái này làm méo mó nhận thức → kết quả sai lệch, đôi khi gây hậu quả cảm xúc xấu cho bạn. \n\n<strong>6. Nhóm người không phù hợp hoặc cần thận trọng đặc biệt ⚠️</strong> \nNgười có rối loạn thần kinh nặng, rối loạn nhân cách nặng, rối loạn tâm thần, ảo giác, động kinh cần không dùng thước để tự đánh giá. \nTrẻ em dưới độ tuổi trưởng thành: chỉ dùng dưới sự giám sát và giải thích của người lớn/giáo viên/chuyên gia. \nNgười đang trong quá trình điều trị tâm lý/thuốc cần hỏi ý kiến chuyên gia trước khi dùng. \n\n<strong>7. Nguy cơ lệ thuộc & tự phán xét — dùng thước có trách nhiệm 🧭 </strong>\nKhông nên dùng thước làm báo cáo giá trị bản thân hàng ngày; nếu lạm dụng sẽ tạo thói quen so sánh và lệ thuộc vào chỉ số. \nTránh chuyển việc “làm tốt/không tốt” thành áp lực: con người phát triển bằng tập luyện & bối cảnh, không phải chỉ số. \n\n<strong>8. Quyền riêng tư & dữ liệu cá nhân 🔐</strong> \nCần minh bạch về việc lưu trữ, ai có thể truy cập, thời gian lưu và xóa dữ liệu qua file Word. \nKhông chia sẻ kết quả với người khác nếu bạn chưa sẵn sàng hoặc chưa thông báo rõ mục đích. \n\n<strong>9. Cách phản ứng khi kết quả cảnh báo (tím/vàng) </strong>🚨 \nĐừng hoảng loạn — coi đó là tín hiệu để dừng, suy nghĩ và hành động có trách nhiệm. \nLàm ngay: dừng hành động, hít thở, ghi nhật ký ngắn, tìm người tin cậy để trò chuyện. \nNếu kết quả lặp lại liên tục và bạn cảm thấy khó kiểm soát hành vi → tìm chuyên gia tâm lý để được hỗ trợ. \n\n<strong>10. Lưu ý văn hóa & bối cảnh xã hội 🌐 </strong>\nHành vi được đánh giá khác nhau theo văn hóa, luật pháp và bối cảnh. \nKhi di chuyển giữa nền văn hóa hoặc sống ở nước khác, không dùng thước như một tiêu chuẩn tuyệt đối mà cần tham khảo văn hoá/luật địa phương. \n\n<strong>11. Khi nào cần tìm giúp đỡ chuyên nghiệp ☎️</strong> \nBạn có xu hướng tự làm hại hoặc nghĩ người khác sẽ bị tổn thương. \nKết quả thước gây cảm xúc tiêu cực kéo dài (suy sụp, trầm cảm). \nMất khả năng làm việc, học tập hoặc duy trì các mối quan hệ vì hành vi. \n→ Liên hệ bác sĩ tâm thần / nhà trị liệu / đường dây nóng khẩn cấp. \n\n<strong>💬 LỜI NHẮC CUỐI</strong> \n> “Thước không dùng để phán xét – mà để phản tư.” \nHãy dùng nó như gương soi nội tâm để sống tỉnh thức hơn mỗi ngày.'
-;
+
 
 helpBtn.onclick = () => {
   document.getElementById('helpText').innerHTML = helpContent;
@@ -2231,6 +2454,227 @@ window.cancelEdit = function(index) {
     window.editingState[index] = false;
     showReview();
 }
+
+
+// Hàm lưu khảo sát tổng kết (Gửi dữ liệu bổ sung lên Firebase)
+window.saveFinalEvaluation = function() {
+    if(!state.user) {
+        alert("Vui lòng đăng nhập để gửi đánh giá!");
+        return;
+    }
+
+    const evaluationData = {
+        timestamp: new Date().toISOString(),
+        group: document.getElementById('userGroup').value,
+        uxScore: document.getElementById('ev_ux').value,
+        behaviorScore: document.getElementById('ev_behavior').value,
+        empathyScore: document.getElementById('ev_empathy').value,
+        reflectionScore: document.getElementById('ev_reflection').value,
+        stressScore: document.getElementById('ev_stress').value
+    };
+
+    // Lưu vào một nhánh riêng 'finalEvaluation' trong user
+    db.ref('users/' + state.user.id + '/finalEvaluation').set(evaluationData)
+    .then(() => {
+        alert("✅ Cảm ơn bạn! Đánh giá đã được ghi nhận để phục vụ nghiên cứu.");
+        document.getElementById('final-evaluation-section').innerHTML = "<p style='color:green; text-align:center;'>✅ Bạn đã hoàn thành khảo sát tổng kết.</p>";
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Có lỗi khi gửi dữ liệu.");
+    });
+};
+
+
+// Biến tạm lưu dữ liệu khảo sát
+let surveyData = {
+    group: '',
+    results: { ux: 0, behavior: 0, empathy: 0, stress: 0 }
+};
+
+// Chọn nhóm người dùng
+window.setSurveyGroup = function(group) {
+    surveyData.group = group;
+    document.querySelectorAll('.group-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-' + group).classList.add('active');
+};
+
+// Chọn điểm số (Likert Tile)
+window.selectTile = function(element) {
+    const parent = element.parentElement;
+    const key = parent.getAttribute('data-key');
+    const value = element.getAttribute('data-v');
+    
+    // Xóa active cũ trong cùng hàng
+    parent.querySelectorAll('.likert-tile').forEach(t => t.classList.remove('active'));
+    // Active cái mới
+    element.classList.add('active');
+    // Lưu vào biến
+    surveyData.results[key] = parseInt(value);
+};
+
+// Gửi dữ liệu lên Firebase
+window.submitSurveyPro = function() {
+    if (!state.user) return alert("Bạn cần đăng nhập!");
+    if (!surveyData.group) return alert("Vui lòng chọn nhóm đối tượng (Câu 1)!");
+    
+    // Kiểm tra xem đã đánh giá hết chưa
+    const missing = Object.values(surveyData.results).some(v => v === 0);
+    if (missing) return alert("Vui lòng đánh giá đủ các mục từ 2 đến 5!");
+
+    const finalPayload = {
+        group: surveyData.group,
+        scores: surveyData.results,
+        timestamp: new Date().toISOString()
+    };
+
+    db.ref('users/' + state.user.id + '/finalSurvey').set(finalPayload)
+    .then(() => {
+        alert("✨ Cảm ơn bạn! Dữ liệu của bạn cực kỳ quý giá cho dự án.");
+        document.getElementById('final-survey').innerHTML = "<div style='text-align:center; padding:20px;'>🎉 <b>Đã gửi thành công!</b><br>Cảm ơn bạn đã đóng góp cho nghiên cứu khoa học.</div>";
+    })
+    .catch(e => alert("Lỗi: " + e.message));
+};
+// --- LOGIC KHẢO SÁT MỚI (CÓ/KHÔNG) ---
+
+// 1. DỮ LIỆU CÂU HỎI
+const QUESTIONS_DB = {
+    user: [
+        { id: 1, text: "🪞 1. Thước có giúp bạn tự nhìn nhận lại nội tâm (động cơ, cảm xúc, ý định) khi sắp/đã hành động không?" },
+        { id: 2, text: "⚖️ 2. Thước có giúp giảm xung đột nội tâm và bớt bốc đồng trong các tình huống căng thẳng không?" },
+        { id: 3, text: "✅ 3. Bạn có trung thực khi gạt thước (gạt đúng với hành vi thực tế) không?" },
+        { id: 4, text: "🔄 4. Bạn có nhận ra khuynh hướng tâm lý lặp lại của mình (VD: hay Bản năng hoặc hay Bản ngã) không?" },
+        { id: 5, text: "😊 5. Khi gạt lên (làm việc tốt), bạn có thấy an tâm, tự hào và hạnh phúc không?" },
+        { id: 6, text: "😔 6. Khi gạt xuống (làm việc xấu), bạn có thấy tội lỗi hay hổ thẹn không?" },
+        { id: 7, text: "🤝 7. Bạn có thấy năng lực đồng cảm cao hơn và sống trách nhiệm hơn sau khi dùng thước không?" },
+        { id: 8, text: "🚨 8. Việc nhìn điểm TB và tín hiệu cảnh báo (Led/Âm thanh) có giúp bạn cố gắng xa rời Bản năng không?" },
+        { id: 9, text: "🛑 9. Thước có giúp bạn hình thành thói quen 'suy nghĩ kỹ trước khi làm' không?" }
+    ],
+    control: [
+        { id: 1, text: "🪞 1. Bạn có thường xuyên tự nhìn nhận tốt nội tâm (động cơ, cảm xúc) khi sắp/đã hành động không?" },
+        { id: 2, text: "⚖️ 2. Trong tình huống căng thẳng/quan trọng, bạn có hay bị xung đột nội tâm và stress không?" },
+        { id: 3, text: "✅ 3. Bạn tự đánh giá mình có phải là người có tính trung thực cao không?" },
+        { id: 4, text: "🔄 4. Bạn có nhận thức rõ ràng về khuynh hướng tâm lý của mình trong nhiều tuần liền không?" },
+        { id: 5, text: "😊 5. Khi làm việc thiện/có ích, bạn có thấy tự hào và hạnh phúc về bản thân không?" },
+        { id: 6, text: "😔 6. Khi làm việc ích kỷ/bốc đồng, bạn có thấy tội lỗi hay xấu hổ không?" },
+        { id: 7, text: "🤝 7. Bạn có thường xuyên đặt mình vào vị trí người khác (đồng cảm) và hành động có trách nhiệm không?" },
+        { id: 8, text: "🌱 8. Bạn có động lực cụ thể nào hằng ngày để thúc đẩy mình sống hướng thiện và bớt ích kỷ không?" },
+        { id: 9, text: "🛑 9. Bạn có thói quen dừng lại suy nghĩ thật kỹ trước khi thực hiện mọi hành động không?" }
+    ]
+};
+
+let currentSurveyGroup = null;
+let currentAnswers = {}; // Lưu câu trả lời { q1: 'yes', q2: 'no', ... }
+
+// 2. HÀM CHỌN NHÓM & HIỂN THỊ CÂU HỎI
+function loadSurveyQuestions(group) {
+    currentSurveyGroup = group;
+    currentAnswers = {}; // Reset câu trả lời cũ
+
+    // Highlight nút chọn nhóm
+    document.querySelectorAll('.survey-group-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('grp-' + group).classList.add('active');
+
+    // Ẩn bước 1, hiện bước 2
+    document.getElementById('step-choose-group').style.display = 'none';
+    const container = document.getElementById('survey-questions-container');
+    const list = document.getElementById('questions-list');
+    container.style.display = 'block';
+    list.innerHTML = '';
+
+    // Render câu hỏi
+    const questions = QUESTIONS_DB[group];
+    questions.forEach((q, index) => {
+        const div = document.createElement('div');
+        div.className = 'survey-question-row';
+        div.innerHTML = `
+            <label class="q-text">${q.text}</label>
+            <div class="yn-options">
+                <div class="yn-btn yes" id="btn-y-${index}" onclick="selectYesNo(${index}, 'yes')">CÓ 👍</div>
+                <div class="yn-btn no" id="btn-n-${index}" onclick="selectYesNo(${index}, 'no')">KHÔNG 👎</div>
+            </div>
+        `;
+        list.appendChild(div);
+    });
+}
+
+// 3. HÀM CHỌN CÓ/KHÔNG
+function selectYesNo(qIndex, value) {
+    currentAnswers[qIndex] = value;
+    
+    // Update UI
+    const btnY = document.getElementById(`btn-y-${qIndex}`);
+    const btnN = document.getElementById(`btn-n-${qIndex}`);
+    
+    if(value === 'yes') {
+        btnY.classList.add('selected');
+        btnN.classList.remove('selected');
+    } else {
+        btnN.classList.add('selected');
+        btnY.classList.remove('selected');
+    }
+}
+
+// 4. HÀM CHỌN LẠI NHÓM
+function resetSurveyGroup() {
+    document.getElementById('step-choose-group').style.display = 'block';
+    document.getElementById('survey-questions-container').style.display = 'none';
+    currentSurveyGroup = null;
+    currentAnswers = {};
+}
+
+// 5. GỬI KẾT QUẢ (SỬA LẠI HÀM CŨ)
+function submitNewSurvey() {
+    // Kiểm tra đăng nhập (Lấy từ biến USER_ID có sẵn trong code cũ của bạn)
+    const uid = localStorage.getItem('FREUD_USER_ID'); 
+    if (!uid) {
+        alert("⚠️ Bạn chưa đăng nhập thông tin. Vui lòng tải lại trang và nhập tên để gửi kết quả.");
+        return;
+    }
+
+    if (!currentSurveyGroup) return;
+
+    // Kiểm tra đã trả lời hết chưa
+    const totalQ = QUESTIONS_DB[currentSurveyGroup].length;
+    const answeredQ = Object.keys(currentAnswers).length;
+    
+    if (answeredQ < totalQ) {
+        alert(`⚠️ Bạn mới trả lời ${answeredQ}/${totalQ} câu hỏi. Vui lòng hoàn thành hết nhé!`);
+        return;
+    }
+
+    // Nút đang gửi
+    const btn = document.getElementById('finalSubmitBtn');
+    btn.innerHTML = "⏳ Đang gửi dữ liệu...";
+    btn.disabled = true;
+
+    // Chuẩn bị dữ liệu gửi đi
+    const payload = {
+        group: currentSurveyGroup === 'user' ? 'Người Dùng Thước' : 'Người Không Dùng',
+        answers: currentAnswers, // {0: 'yes', 1: 'no'...}
+        timestamp: new Date().toISOString(),
+        device: navigator.userAgent
+    };
+
+    // Gửi lên Firebase (Đường dẫn: users/[ID]/finalSurveyV2)
+    // Dùng biến 'db' đã khai báo ở đầu file index.html
+    db.ref('users/' + uid + '/finalSurveyV2').set(payload)
+    .then(() => {
+        alert("🎉 GỬI THÀNH CÔNG!\nCảm ơn bạn đã đóng góp dữ liệu quý giá cho dự án Khoa học Kỹ thuật.");
+        document.getElementById('final-survey').innerHTML = `
+            <div style="text-align:center; padding:30px;">
+                <h1 style="font-size:50px;">✅</h1>
+                <h3 style="color:#2ecc71;">Đã ghi nhận kết quả!</h3>
+                <p>Chúc bạn một ngày tốt lành và tràn đầy năng lượng tích cực.</p>
+            </div>
+        `;
+    })
+    .catch(err => {
+        alert("❌ Lỗi: " + err.message);
+        btn.innerHTML = "GỬI KẾT QUẢ NGHIÊN CỨU 🚀";
+        btn.disabled = false;
+    });
+}
 </script>
 <audio id="sndAmber" src="alert-amber.mp3" preload="auto"></audio>
 <audio id="sndRed"   src="alert-red.mp3" preload="auto"></audio>
@@ -2243,12 +2687,3 @@ window.cancelEdit = function(index) {
 
 </body>
 </html>
-
- 
-
-
-
-
-
-
-
