@@ -1,2 +1,2121 @@
-<!DOCTYPE html><html lang="vi"><head>    <meta charset="UTF-8">    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <title>Hệ thống Quản trị Dữ liệu Tâm lý (Admin Pro)</title>    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>    <style>        /* ================================================================= */        /* 1. GIAO DIỆN & LAYOUT HIỆN ĐẠI                                    */        /* ================================================================= */        :root {             --bg: #f0f2f5;             --primary: #004080;             --secondary: #1a73e8;            --white: #ffffff;             --text: #333;            --active-row: #e8f0fe;        }        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: var(--bg); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }                /* Header Gradient đẹp hơn */        header {             background: linear-gradient(135deg, #004080 0%, #1a73e8 100%);             color: white;             padding: 15px 25px;             display: flex;             justify-content: space-between;             align-items: center;             box-shadow: 0 4px 12px rgba(0,0,0,0.15);             z-index: 10;        }        header h1 { margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; display: flex; align-items: center; gap: 10px; }                /* Toolbar (Thanh công cụ) */        .toolbar-container {             background: white;             padding: 15px 25px;             border-bottom: 1px solid #e0e0e0;             display: flex;             gap: 15px;             align-items: center;             flex-wrap: wrap;             box-shadow: 0 2px 5px rgba(0,0,0,0.05);            z-index: 9;        }                .control-group { display: flex; flex-direction: column; gap: 4px; }        .control-label { font-size: 11px; font-weight: 700; color: #5f6368; text-transform: uppercase; }        .inp-style { padding: 8px 12px; border: 1px solid #dadce0; border-radius: 6px; font-size: 13px; outline: none; transition: border 0.2s; }        .inp-style:focus { border-color: var(--secondary); box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }                .btn-sync {             height: 38px; padding: 0 20px;             background: #d93025; color: white;             border: none; border-radius: 6px;             font-weight: 600; cursor: pointer;             box-shadow: 0 2px 6px rgba(217, 48, 37, 0.3);            transition: all 0.2s;        }        .btn-sync:hover { background: #b31412; transform: translateY(-1px); }        .btn-sync:active { transform: translateY(0); }        .search-box { flex-grow: 1; max-width: 400px; position: relative; }        .search-box input { width: 100%; padding-left: 35px; box-sizing: border-box; }        .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #999; }        .total-badge { margin-left: auto; background: #e8f0fe; color: #1967d2; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; border: 1px solid #d2e3fc; }        /* ================================================================= */        /* 2. CHIA ĐÔI MÀN HÌNH (SPLIT VIEW) - ĐÃ ĐIỀU CHỈNH TỈ LỆ          */        /* ================================================================= */        .content-wrapper {            display: flex;            flex: 1;            overflow: hidden;            height: calc(100vh - 140px); /* Trừ header + toolbar */        }        /* PANEL TRÁI: DANH SÁCH (Rộng hơn: 65%) */        .left-panel {            flex: 6.5; /* Chiếm 65% */            background: white;            overflow-y: overlay; /* Scroll đẹp hơn */            border-right: 1px solid #e0e0e0;            display: flex;            flex-direction: column;        }        /* PANEL PHẢI: CHI TIẾT (Hẹp hơn: 35%) */        .right-panel {            flex: 3.5; /* Chiếm 35% */            background: #f8f9fa;            overflow-y: overlay;            padding: 20px;            box-shadow: inset 5px 0 15px -10px rgba(0,0,0,0.1);        }        /* Tùy chỉnh thanh cuộn */        ::-webkit-scrollbar { width: 8px; height: 8px; }        ::-webkit-scrollbar-track { background: transparent; }        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }        ::-webkit-scrollbar-thumb:hover { background: #bbb; }        /* Bảng Dữ liệu */        table.main-table { width: 100%; border-collapse: separate; border-spacing: 0; }        table.main-table th {             background: white; color: #444;             padding: 15px; text-align: left;             position: sticky; top: 0; z-index: 5;            font-size: 12px; font-weight: 700; text-transform: uppercase;             border-bottom: 2px solid #eee;        }        table.main-table td { padding: 12px 15px; border-bottom: 1px solid #f1f1f1; font-size: 14px; color: #333; transition: background 0.1s; }                /* Hiệu ứng hàng */        table.main-table tr:hover td { background-color: #fafafa; cursor: pointer; }                /* HÀNG ĐANG ĐƯỢC CHỌN (Sửa lỗi không biết đang chọn ai) */        tr.active-row td { background-color: var(--active-row) !important; color: #1967d2; font-weight: 500; }        tr.active-row { border-left: 4px solid #1967d2; }        /* Nút Xóa đẹp hơn */        .btn-delete {             background: white; color: #d93025;             border: 1px solid #d93025; padding: 5px 10px;             border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;            transition: all 0.2s;        }        .btn-delete:hover { background: #d93025; color: white; }        /* ================================================================= */        /* 3. THẺ CHI TIẾT (RIGHT PANEL)                                     */        /* ================================================================= */        .detail-header-card {            background: white; padding: 20px; border-radius: 12px;            box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px;            border-left: 5px solid var(--primary);        }        .detail-name { font-size: 20px; font-weight: 800; color: var(--primary); margin: 0 0 5px 0; }        .detail-sub { font-size: 13px; color: #666; display: flex; gap: 10px; align-items: center; }                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }        .info-box { background: #f8f9fa; padding: 10px; border-radius: 8px; }        .info-label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: bold; }        .info-val { font-size: 14px; color: #333; font-weight: 600; margin-top: 2px; }        /* Card Lịch sử */        .cycle-card {             background: white; border-radius: 12px;             box-shadow: 0 2px 10px rgba(0,0,0,0.04);             margin-bottom: 20px; overflow: hidden;             border: 1px solid rgba(0,0,0,0.05);            transition: transform 0.2s;        }        .cycle-card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.08); }                .card-header { padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }        .log-container { max-height: 180px; overflow-y: auto; background: #fff; }        .log-table th { background: #f8f9fa; color: #555; font-size: 11px; position: sticky; top: 0; padding: 8px 15px; }        .log-table td { padding: 8px 15px; font-size: 13px; }        .saved-data { background: #f0fdf4; border: 1px solid #dcfce7; padding: 15px; border-radius: 8px; margin: 15px; }                /* Màu sắc Badge trạng thái */        .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }        .bg-purple { background: #f3e5f5; color: #7b1fa2; border: 1px solid #e1bee7; }        .bg-red { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }        .bg-green { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }        .bg-blue { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }        .bg-amber { background: #fff8e1; color: #f57f17; border: 1px solid #ffecb3; }        .bg-gray { background: #f5f5f5; color: #757575; border: 1px solid #e0e0e0; }                /* Màu Header Card */        .color-purple .card-header { background: #f3e5f5; color: #4a148c; }        .color-red .card-header { background: #ffebee; color: #c62828; }        .color-green .card-header { background: #e8f5e9; color: #2e7d32; }        .color-blue .card-header { background: #e3f2fd; color: #1565c0; }        .color-amber .card-header { background: #fff8e1; color: #f57f17; }        .empty-state { text-align: center; margin-top: 100px; color: #aaa; }        .empty-icon { font-size: 60px; margin-bottom: 20px; display: block; opacity: 0.5; }    </style></head><body>    <header>        <h1>🔐 Admin Pro <span style="font-size:12px; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px;">v2.0</span></h1>        <div style="font-size:13px; opacity: 0.9;">Trung tâm Giám sát Tâm lý</div>    </header>    <div class="toolbar-container">        <div class="control-group">            <label class="control-label">📅 Bắt đầu Chu kỳ:</label>            <input type="datetime-local" id="sysStartTime" class="inp-style">        </div>                <div class="control-group">            <label class="control-label">⏳ Thời lượng (Phút):</label>            <input type="number" id="sysDuration" placeholder="VD: 10080" class="inp-style" style="width: 100px;">        </div>        <button onclick="updateSystemConfig()" class="btn-sync">            🚀 ĐỒNG BỘ HỆ THỐNG        </button>        <div id="sysMsg" style="color: #2e7d32; font-weight: bold; font-size: 13px; display: none;">✅ Đã cập nhật!</div>        <div style="width: 1px; height: 30px; background: #eee; margin: 0 10px;"></div>        <div class="search-box">            <span class="search-icon">🔍</span>            <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Tìm tên, lớp, SĐT..." class="inp-style">        </div>        <div class="total-badge">            Hồ sơ: <span id="userCount">0</span>        </div>    </div>    <div class="content-wrapper">        <div class="left-panel">            <table class="main-table" id="userTable">                <thead>                    <tr>                        <th onclick="sortTable(1)" style="width: 25%">Họ và Tên ⬍</th>                        <th onclick="sortTable(2)" style="width: 15%">Đối tượng ⬍</th>                        <th style="width: 30%">Thông tin chi tiết</th>                        <th onclick="sortTable(5)" style="width: 15%">Trạng thái</th>                        <th style="text-align:center; width: 10%">Xử lý</th>                    </tr>                </thead>                <tbody id="userTableBody">                    <tr><td colspan="5" style="text-align:center; padding:30px; color:#888;">Đang tải dữ liệu...</td></tr>                </tbody>            </table>        </div>        <div class="right-panel" id="detailPanel">            <div class="empty-state">                <span class="empty-icon">👈</span>                <h3>Chưa chọn hồ sơ nào</h3>                <p>Vui lòng nhấn vào một dòng bên trái để xem chi tiết.</p>            </div>        </div>    </div>    <script>        // 1. CẤU HÌNH FIREBASE        const firebaseConfig = {            apiKey: "AIzaSyBvSBloHwRCvWNzt37ThhxuPqVqgQfohlo",            authDomain: "freudruler.firebaseapp.com",            databaseURL: "https://freudruler-default-rtdb.asia-southeast1.firebasedatabase.app",            projectId: "freudruler",            storageBucket: "freudruler.firebasestorage.app",            messagingSenderId: "907969291678",            appId: "1:907969291678:web:e0e99eb6550a31bd42a28f"        };        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);        const db = firebase.database();        const usersRef = db.ref('users');        const configRef = db.ref('system_config');        let usersData = [];        let selectedUserId = null; // Lưu ID đang chọn        // 2. XỬ LÝ CẤU HÌNH HỆ THỐNG        configRef.on('value', (snap) => {            const conf = snap.val();            if(conf) {                if(conf.startTime) {                    const d = new Date(conf.startTime);                    const pad = (n) => n < 10 ? '0'+n : n;                    const localIso = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());                    document.getElementById('sysStartTime').value = localIso;                }                if(conf.durationMinutes) document.getElementById('sysDuration').value = conf.durationMinutes;            }        });        function updateSystemConfig() {            const tVal = document.getElementById('sysStartTime').value;            const dVal = document.getElementById('sysDuration').value;            if(!tVal || !dVal) { alert("Vui lòng nhập đủ thông tin!"); return; }            const startTs = new Date(tVal).getTime();            const durationMs = parseInt(dVal) * 60 * 1000;            if(confirm("⚠️ CẢNH BÁO: Hành động này sẽ RESET chu kỳ của TẤT CẢ người dùng. Tiếp tục?")) {                configRef.set({                    startTime: startTs,                    durationMs: durationMs,                    durationMinutes: parseInt(dVal),                    updatedAt: firebase.database.ServerValue.TIMESTAMP                }).then(() => {                    const msg = document.getElementById('sysMsg');                    msg.style.display = 'inline';                    setTimeout(() => msg.style.display = 'none', 3000);                });            }        }        // 3. XỬ LÝ DỮ LIỆU USER        function normalizeUserType(type) {            if (!type) return 'Chưa xác định';            const t = type.toLowerCase();            if (t.includes('student') || t.includes('học sinh')) return 'Học sinh';            if (t.includes('resident') || t.includes('người dân')) return 'Người dân';            return 'Khác';        }        usersRef.on('value', (snapshot) => {            const data = snapshot.val();            usersData = [];            if (data) {                Object.keys(data).forEach(key => {                    const u = data[key];                    u.id = key;                                        // Logic xử lý lịch sử                    if (u.history && Array.isArray(u.history)) {                        u.processedHistory = u.history;                    } else if (u.cycles) {                        u.processedHistory = Object.keys(u.cycles).map(k => {                            const c = u.cycles[k];                            c.endTime = c.endTime || parseInt(k) || Date.now();                            c.avgScore = (c.currentState && c.currentState.score) ? c.currentState.score : 0;                            return c;                        }).sort((a,b) => b.endTime - a.endTime);                    } else {                        u.processedHistory = [];                    }                    // Lấy trạng thái gần nhất                    if (u.processedHistory.length > 0) {                        const last = u.processedHistory[0];                        u.lastDate = last.endTime;                        u.lastScore = last.avgScore;                    } else {                        u.lastDate = 0;                        u.lastScore = null;                    }                    usersData.push(u);                });                                document.getElementById('userCount').textContent = usersData.length;                renderTable(usersData);                                // Nếu đang chọn user nào đó, refresh lại detail của họ                if(selectedUserId) showDetail(selectedUserId);            } else {                document.getElementById('userTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Chưa có dữ liệu</td></tr>';            }        });        function renderTable(list) {            const tbody = document.getElementById('userTableBody');            tbody.innerHTML = '';            list.forEach(user => {                const p = user.profile || {};                const type = normalizeUserType(p.userType);                let detail = '';                if (type === 'Học sinh') detail = `<b>${p.className || '?'}</b> - ${p.schoolName || ''}`;                else if (type === 'Người dân') detail = `${p.phone || ''}`;                else detail = `${p.birthYear || ''}`;                // Badge Trạng thái                let badge = '<span class="badge bg-gray">--</span>';                if (user.lastScore !== null) {                    const s = user.lastScore;                    if (s <= -6667) badge = `<span class="badge bg-purple">Tím (${s.toFixed(1)})</span>`;                    else if (s <= -3334) badge = `<span class="badge bg-red">Đỏ (${s.toFixed(1)})</span>`;                    else if (s >= 6667) badge = `<span class="badge bg-amber">Vàng (${s.toFixed(1)})</span>`;                    else if (s >= 3334) badge = `<span class="badge bg-blue">Xanh Dương (${s.toFixed(1)})</span>`;                    else badge = `<span class="badge bg-green">Xanh Lá (${s.toFixed(1)})</span>`;                }                const tr = document.createElement('tr');                tr.id = `row-${user.id}`;                // Giữ trạng thái active nếu đang chọn                if(user.id === selectedUserId) tr.classList.add('active-row');                tr.onclick = () => showDetail(user.id);                                tr.innerHTML = `                    <td style="font-weight:600; color:var(--primary);">${p.fullName || 'Ẩn danh'}</td>                    <td>${type}</td>                    <td style="color:#555;">${detail}</td>                    <td>${badge}</td>                    <td style="text-align:center;">                        <button class="btn-delete" onclick="deleteUser('${user.id}', event)">Xóa</button>                    </td>                `;                tbody.appendChild(tr);            });        }        // 4. HIỂN THỊ CHI TIẾT        function showDetail(userId) {            // Cập nhật UI hàng được chọn            const rows = document.querySelectorAll('tr');            rows.forEach(r => r.classList.remove('active-row'));            const activeRow = document.getElementById(`row-${userId}`);            if(activeRow) activeRow.classList.add('active-row');                        selectedUserId = userId;            const user = usersData.find(u => u.id === userId);            const panel = document.getElementById('detailPanel');            if (!user) {                panel.innerHTML = '<div class="empty-state"><h3>Hồ sơ không tồn tại</h3></div>';                return;            }            const p = user.profile || {};            const type = normalizeUserType(p.userType);            // Xây dựng thông tin cá nhân            let infoHTML = '';            if(type === 'Học sinh'){                infoHTML = `                    <div class="info-box"><div class="info-label">Lớp</div><div class="info-val">${p.className || '--'}</div></div>                    <div class="info-box"><div class="info-label">Trường</div><div class="info-val">${p.schoolName || '--'}</div></div>                `;            } else {                infoHTML = `                    <div class="info-box"><div class="info-label">Số điện thoại</div><div class="info-val">${p.phone || '--'}</div></div>                    <div class="info-box"><div class="info-label">Địa chỉ</div><div class="info-val">${p.address || '--'}</div></div>                `;            }            let profileCard = `                <div class="detail-header-card">                    <div class="detail-name">${p.fullName || 'Chưa đặt tên'}</div>                    <div class="detail-sub">                        <span class="badge bg-blue">${type}</span>                        <span>• ID: ${userId}</span>                        <span>• Giới tính: ${p.gender || '--'}</span>                    </div>                    <div class="info-grid">                        ${infoHTML}                    </div>                </div>            `;            // Xây dựng lịch sử            let historyHTML = '';            if (user.processedHistory.length === 0) {                historyHTML = '<div style="text-align:center; padding:40px; color:#999; border:2px dashed #eee; border-radius:8px;">Chưa có dữ liệu nhật ký nào.</div>';            } else {                user.processedHistory.forEach((cycle, index) => {                    const cycleNum = user.processedHistory.length - index;                    const avgScore = cycle.avgScore;                    const catInfo = getCategoryInfo(avgScore);                    const startObj = formatDateTime(cycle.startTime || cycle.endTime);                     const fb = cycle.feedback || {};                    historyHTML += `<div class="cycle-card ${catInfo.class}">                        <div class="card-header">                            <div>                                <strong style="font-size:15px;">Chu kỳ ${cycleNum}</strong>                                <div style="font-size:12px; color:#666; font-weight:normal;">${startObj.time} - ${startObj.date}</div>                            </div>                            <div style="text-align:right;">                                <div style="font-size:16px; font-weight:bold;">${catInfo.emoji} ${avgScore > 0 ? '+' : ''}${Number(avgScore).toFixed(1)}</div>                                <div style="font-size:11px; opacity:0.8;">${catInfo.label}</div>                            </div>                        </div>                        <div class="log-container">                            <table class="log-table" width="100%">                                <thead><tr><th>Thời gian</th><th>Điểm</th><th>Khuynh hướng</th></tr></thead>                                <tbody>`;                                                    const entries = cycle.entries || [];                    if (entries.length === 0) {                        historyHTML += `<tr><td colspan="3" style="text-align:center; color:#ccc; padding:10px;">Trống</td></tr>`;                    } else {                        entries.forEach(e => {                            const val = Number(e.value || 0);                            const info = getCategoryInfo(val);                            // [SỬA] Lấy thêm ngày thángconst tStr = e.time || (e.ts ? formatDateTime(e.ts).time : '--');const dStr = e.date || (e.ts ? formatDateTime(e.ts).date : ''); historyHTML += `<tr>    <td>        <strong>${tStr}</strong>        <div style="font-size:11px; color:#888;">${dStr}</div>     </td>    <td style="font-weight:bold; color:${info.color}">${val > 0 ? '+' : ''}${val}</td>                            </tr>`;                        });                    }                    historyHTML += `</tbody></table></div>`;                    // Feedback                    if (fb && (fb.q1 || fb.content)) {                        historyHTML += `<div class="saved-data">                            <div class="saved-item"><span class="saved-label">📝 Sự kiện:</span> ${fb.q1 || fb.content || '--'}</div>                            <div class="saved-item"><span class="saved-label">⚔️ Xung đột:</span> ${fb.q2 || '--'}</div>                            <div class="saved-item"><span class="saved-label">💡 Bài học:</span> ${fb.q3 || '--'}</div>                            <hr style="border-top:1px dashed #ccc; margin:10px 0;">                            <div style="font-size:12px; color:#555;">                                📱 Giao diện: ${renderStars(fb.r1)} | 🧠 Hiểu mình: ${renderStars(fb.r2)} | 🦋 Thay đổi: ${renderStars(fb.r3)}                            </div>                            <div style="margin-top:5px; font-size:12px; font-weight:bold;">                                😊 Hài lòng: ${renderEmoji(fb.satResult)} | 📏 Thước: ${renderEmoji(fb.satTool)}                            </div>                        </div>`;                    } else {                        historyHTML += `<div style="padding:15px; text-align:center; font-size:13px; color:#aaa;">Chưa viết nhật ký phản tư.</div>`;                    }                    historyHTML += `</div>`;                });            }            panel.innerHTML = profileCard + `<h3 style="color:var(--primary); margin:20px 0 10px 0;">📜 Lịch sử Hoạt động</h3>` + historyHTML;        }        function deleteUser(id, event) {            event.stopPropagation();            if (confirm("⛔ CẢNH BÁO: Xóa hồ sơ này sẽ mất vĩnh viễn dữ liệu. Bạn có chắc chắn?")) {                db.ref('users/' + id).remove()                    .then(() => {                        // Nếu đang xem user bị xóa thì reset panel phải                        if(selectedUserId === id) {                            document.getElementById('detailPanel').innerHTML = '<div class="empty-state"><h3>Đã xóa hồ sơ</h3></div>';                            selectedUserId = null;                        }                    })                    .catch(err => alert("Lỗi: " + err.message));            }        }        // 5. CÁC HÀM BỔ TRỢ (HELPERS)        function getCategoryInfo(val) {            const n = Number(val || 0);            if (n <= -6667) return { label: 'Bản năng mạnh', emoji: '😈', class: 'color-purple', color: '#8e44ad' };            if (n <= -3334) return { label: 'Bản năng vừa',  emoji: '🔥', class: 'color-red', color: '#e74c3c' };            if (n >= 6667)  return { label: 'Siêu ngã mạnh',  emoji: '😇', class: 'color-amber', color: '#d4ac0d' };            if (n >= 3334)  return { label: 'Siêu ngã vừa',   emoji: '🕊️', class: 'color-blue', color: '#1976d2' };            return { label: 'Cân bằng', emoji: '👤', class: 'color-green', color: '#2e7d32' };        }        function renderStars(val) {            let h = '';            for(let i=1; i<=5; i++) h += (i<=val ? '★' : '☆');            return `<span style="color:#f1c40f;">${h}</span>`;        }                function renderEmoji(val) {            const emojis = ['😡', '☹️', '😐', '🙂', '😍'];            return (!val || val < 1) ? '--' : emojis[val-1];        }        function formatDateTime(ts) {            if(!ts) return {time:'', date:''};            const d = new Date(ts);            return {                time: d.toLocaleTimeString('vi-VN', {hour12:false}),                date: d.toLocaleDateString('vi-VN')            };        }        // Sort & Search        let sortCol = -1, sortAsc = true;        function sortTable(colIndex) {            sortAsc = (sortCol === colIndex) ? !sortAsc : true;            sortCol = colIndex;            usersData.sort((a, b) => {                let v1, v2;                const pA = a.profile || {}, pB = b.profile || {};                switch(colIndex) {                    case 1: v1 = pA.fullName || ''; v2 = pB.fullName || ''; break;                    case 2: v1 = normalizeUserType(pA.userType); v2 = normalizeUserType(pB.userType); break;                    case 5: v1 = a.lastScore || 0; v2 = b.lastScore || 0; break;                    default: return 0;                }                if (v1 < v2) return sortAsc ? -1 : 1;                if (v1 > v2) return sortAsc ? 1 : -1;                return 0;            });            renderTable(usersData);        }        function filterTable() {            const term = document.getElementById('searchInput').value.toLowerCase();            const filtered = usersData.filter(u => {                const p = u.profile || {};                return `${p.fullName} ${p.className} ${p.phone} ${p.address}`.toLowerCase().includes(term);            });            renderTable(filtered);        }    </script></body></html>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Quản trị Dữ liệu Tâm lý (Admin Pro)</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
+    <style>
+        /* ================================================================= */
+        /* 1. GIAO DIỆN & LAYOUT HIỆN ĐẠI                                    */
+        /* ================================================================= */
+        :root { 
+            --bg: #f0f2f5; 
+            --primary: #004080; 
+            --secondary: #1a73e8;
+            --white: #ffffff; 
+            --text: #333;
+            --active-row: #e8f0fe;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: var(--bg); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* Header Gradient đẹp hơn */
+        header { 
+            background: linear-gradient(135deg, #004080 0%, #1a73e8 100%); 
+            color: white; 
+            padding: 15px 25px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+            z-index: 10;
+        }
+        header h1 { margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        
+        /* Toolbar (Thanh công cụ) */
+        .toolbar-container { 
+            background: white; 
+            padding: 15px 25px; 
+            border-bottom: 1px solid #e0e0e0; 
+            display: flex; 
+            gap: 15px; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            z-index: 9;
+        }
+        
+        .control-group { display: flex; flex-direction: column; gap: 4px; }
+        .control-label { font-size: 11px; font-weight: 700; color: #5f6368; text-transform: uppercase; }
+        .inp-style { padding: 8px 12px; border: 1px solid #dadce0; border-radius: 6px; font-size: 13px; outline: none; transition: border 0.2s; }
+        .inp-style:focus { border-color: var(--secondary); box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
+        
+        .btn-sync { 
+            height: 38px; padding: 0 20px; 
+            background: #d93025; color: white; 
+            border: none; border-radius: 6px; 
+            font-weight: 600; cursor: pointer; 
+            box-shadow: 0 2px 6px rgba(217, 48, 37, 0.3);
+            transition: all 0.2s;
+        }
+
+/* --- Style cho tính năng Bulk Delete --- */
+.btn-bulk-delete {
+    height: 38px; padding: 0 20px;
+    background: #c0392b; color: white; /* Màu đỏ đậm hơn */
+    border: none; border-radius: 6px;
+    font-weight: 700; cursor: pointer;
+    box-shadow: 0 2px 6px rgba(192, 57, 43, 0.3);
+    transition: all 0.2s;
+    display: none; /* Mặc định ẩn */
+    align-items: center; gap: 8px;
+}
+.btn-bulk-delete:hover { background: #a93226; transform: translateY(-1px); }
+
+/* Checkbox to hơn một chút cho dễ bấm */
+.chk-user {
+    width: 18px; height: 18px; cursor: pointer;
+    accent-color: #004080;
+}
+        .btn-sync:hover { background: #b31412; transform: translateY(-1px); }
+        .btn-sync:active { transform: translateY(0); }
+
+        .search-box { flex-grow: 1; max-width: 400px; position: relative; }
+        .search-box input { width: 100%; padding-left: 35px; box-sizing: border-box; }
+        .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #999; }
+
+        .total-badge { margin-left: auto; background: #e8f0fe; color: #1967d2; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; border: 1px solid #d2e3fc; }
+
+        /* ================================================================= */
+        /* 2. CHIA ĐÔI MÀN HÌNH (SPLIT VIEW) - ĐÃ ĐIỀU CHỈNH TỈ LỆ          */
+        /* ================================================================= */
+        .content-wrapper {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            height: calc(100vh - 140px); /* Trừ header + toolbar */
+        }
+
+        /* PANEL TRÁI: DANH SÁCH (Rộng hơn: 65%) */
+        .left-panel {
+            flex: 6.5; /* Chiếm 65% */
+            background: white;
+            overflow-y: overlay; /* Scroll đẹp hơn */
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* PANEL PHẢI: CHI TIẾT (Hẹp hơn: 35%) */
+        .right-panel {
+            flex: 3.5; /* Chiếm 35% */
+            background: #f8f9fa;
+            overflow-y: overlay;
+            padding: 20px;
+            box-shadow: inset 5px 0 15px -10px rgba(0,0,0,0.1);
+        }
+
+        /* Tùy chỉnh thanh cuộn */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #bbb; }
+
+        /* Bảng Dữ liệu */
+        table.main-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        table.main-table th { 
+            background: white; color: #444; 
+            padding: 15px; text-align: left; 
+            position: sticky; top: 0; z-index: 5;
+            font-size: 12px; font-weight: 700; text-transform: uppercase; 
+            border-bottom: 2px solid #eee;
+        }
+        table.main-table td { padding: 12px 15px; border-bottom: 1px solid #f1f1f1; font-size: 14px; color: #333; transition: background 0.1s; }
+        
+        /* Hiệu ứng hàng */
+        table.main-table tr:hover td { background-color: #fafafa; cursor: pointer; }
+        
+        /* HÀNG ĐANG ĐƯỢC CHỌN (Sửa lỗi không biết đang chọn ai) */
+        tr.active-row td { background-color: var(--active-row) !important; color: #1967d2; font-weight: 500; }
+        tr.active-row { border-left: 4px solid #1967d2; }
+
+        /* Nút Xóa đẹp hơn */
+        .btn-delete { 
+            background: white; color: #d93025; 
+            border: 1px solid #d93025; padding: 5px 10px; 
+            border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-delete:hover { background: #d93025; color: white; }
+
+        /* ================================================================= */
+        /* 3. THẺ CHI TIẾT (RIGHT PANEL)                                     */
+        /* ================================================================= */
+        .detail-header-card {
+            background: white; padding: 20px; border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px;
+            border-left: 5px solid var(--primary);
+        }
+        .detail-name { font-size: 20px; font-weight: 800; color: var(--primary); margin: 0 0 5px 0; }
+        .detail-sub { font-size: 13px; color: #666; display: flex; gap: 10px; align-items: center; }
+        
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
+        .info-box { background: #f8f9fa; padding: 10px; border-radius: 8px; }
+        .info-label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: bold; }
+        .info-val { font-size: 14px; color: #333; font-weight: 600; margin-top: 2px; }
+
+        /* Card Lịch sử */
+        .cycle-card { 
+            background: white; border-radius: 12px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04); 
+            margin-bottom: 20px; overflow: hidden; 
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+        .cycle-card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
+        
+        .card-header { padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }
+        .log-container { max-height: 180px; overflow-y: auto; background: #fff; }
+        .log-table th { background: #f8f9fa; color: #555; font-size: 11px; position: sticky; top: 0; padding: 8px 15px; }
+        .log-table td { padding: 8px 15px; font-size: 13px; }
+
+        .saved-data { background: #f0fdf4; border: 1px solid #dcfce7; padding: 15px; border-radius: 8px; margin: 15px; }
+        
+        /* Màu sắc Badge trạng thái */
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+        .bg-purple { background: #f3e5f5; color: #7b1fa2; border: 1px solid #e1bee7; }
+        .bg-red { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        .bg-green { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+        .bg-blue { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+        .bg-amber { background: #fff8e1; color: #f57f17; border: 1px solid #ffecb3; }
+        .bg-gray { background: #f5f5f5; color: #757575; border: 1px solid #e0e0e0; }
+        
+        /* Màu Header Card */
+        .color-purple .card-header { background: #f3e5f5; color: #4a148c; }
+        .color-red .card-header { background: #ffebee; color: #c62828; }
+        .color-green .card-header { background: #e8f5e9; color: #2e7d32; }
+        .color-blue .card-header { background: #e3f2fd; color: #1565c0; }
+        .color-amber .card-header { background: #fff8e1; color: #f57f17; }
+
+        .empty-state { text-align: center; margin-top: 100px; color: #aaa; }
+        .empty-icon { font-size: 60px; margin-bottom: 20px; display: block; opacity: 0.5; }
+/* Badge hiển thị trình duyệt */
+.browser-badge {
+    font-size: 11px; color: #555; background: #e9ecef;
+    padding: 2px 6px; border-radius: 4px; border: 1px solid #dee2e6;
+    margin-left: 6px; display: inline-flex; align-items: center; gap: 4px;
+    font-weight: normal;
+}
+
+/* Nút Gộp vào đây (Hiện ra khi có checkbox được chọn) */
+.btn-merge-into {
+    background-color: #1a73e8; /* Màu xanh Google */
+    color: white; border: none; padding: 5px 10px;
+    border-radius: 4px; cursor: pointer; font-size: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    animation: fadeIn 0.3s;
+}
+.btn-merge-into:hover { background-color: #1557b0; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+
+
+/* --- CSS MỚI: Style cho Khảo sát Tổng kết --- */
+.survey-result-card {
+    background: #fff;
+    border: 2px solid #004080;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 15px rgba(0, 64, 128, 0.1);
+}
+.survey-title {
+    color: #004080;
+    font-size: 16px;
+    font-weight: 800;
+    text-transform: uppercase;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+.survey-meta {
+    background: #e3f2fd;
+    padding: 10px;
+    border-radius: 6px;
+    color: #0d47a1;
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+}
+.q-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px dashed #eee;
+    font-size: 13px;
+}
+.q-row:last-child { border-bottom: none; }
+.ans-tag {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+.ans-yes { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+.ans-no { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+
+/* Thống kê nhỏ trong Card Chu kỳ */
+.cycle-stats {
+    font-size: 11px; 
+    color: #555; 
+    margin-top: 4px; 
+    display: flex; 
+    gap: 15px;
+    background: rgba(0,0,0,0.03);
+    padding: 4px 8px;
+    border-radius: 4px;
+    width: fit-content;
+}
+    </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <header>
+        <h1>🔐 Admin Pro <span style="font-size:12px; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px;">v2.0</span></h1>
+        <div style="font-size:13px; opacity: 0.9;">Trung tâm Giám sát Tâm lý</div>
+    </header>
+
+    <div class="toolbar-container">
+        <div class="control-group">
+            <label class="control-label">📅 Bắt đầu Chu kỳ:</label>
+            <input type="datetime-local" id="sysStartTime" class="inp-style">
+        </div>
+        
+        <div class="control-group">
+            <label class="control-label">⏳ Thời lượng (Phút):</label>
+            <input type="number" id="sysDuration" placeholder="VD: 10080" class="inp-style" style="width: 100px;">
+        </div>
+
+<div id="mergeMsg" style="color:#d35400; font-weight:bold; font-size:13px; display:none; margin-left:10px;">
+    👇 Chọn User Nguồn (Bị xóa) -> Chọn User Đích (Giữ lại)
+</div>  
+        <button onclick="deleteSelectedUsers()" id="btnBulkDelete" class="btn-bulk-delete">
+    🗑️ XÓA ĐÃ CHỌN (<span id="selectedCount">0</span>)
+</button>
+<button onclick="deleteAllEmptyCycles()" class="btn-sync" style="background: #e056fd; border: none;">
+    🧹 DỌN CYCLE RỖNG
+</button>
+<button onclick="toggleMergeMode()" id="btnMergeMode" class="btn-sync" style="background:#f39c12; margin-left:10px;">
+    🧩 CHẾ ĐỘ GỘP USER
+</button>
+<button onclick="autoMergeDuplicates()" class="btn-sync" style="background: #6c5ce7; border: none;">
+    ⚡ GỘP TRÙNG TÊN
+</button>
+<button onclick="openAnalysisModal()" class="btn-sync" style="background:#8e44ad; margin-left:10px;">
+    📊 VẼ BIỂU ĐỒ KHKT
+</button>
+
+<div id="analysisModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; overflow-y:auto;">
+    <div style="background:white; margin:2% auto; width:90%; max-width:1000px; padding:20px; border-radius:8px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+            <h2 style="margin:0; color:#2c3e50;">📊 PHÂN TÍCH DỮ LIỆU NGHIÊN CỨU</h2>
+            <button onclick="document.getElementById('analysisModal').style.display='none'" style="background:#c0392b; color:white; border:none; padding:5px 15px; cursor:pointer;">Đóng X</button>
+        </div>
+        
+       <div style="display:grid; grid-template-columns: 1fr; gap:30px;">
+    
+    <div style="border:1px solid #ddd; padding:15px; border-radius:8px; background:#fff;">
+        <h3 style="text-align:center; color:#2c3e50;">1. SỰ BIẾN THIÊN ĐIỂM TRUNG BÌNH (KHUYNH HƯỚNG TÂM LÝ) QUA 4 TUẦN</h3>
+        <p style="font-size:12px; color:#666; text-align:center;">
+            *Mỗi đường mờ là một người dùng. Đường màu đỏ đậm là xu hướng trung bình chung.<br>
+      
+        </p>
+        <div style="height:400px;">
+            <canvas id="spaghettiChart"></canvas>
+        </div>
+    </div>
+
+    <div style="border:1px solid #ddd; padding:15px; border-radius:8px; background:#fff;">
+        <h3 style="text-align:center; color:#2c3e50;">2. So sánh Đối từng cặp: Trước vs. Sau (Individual Effectiveness)</h3>
+        <p style="font-size:12px; color:#666; text-align:center;">
+            *Trục ngang: Điểm Tuần 1 | Trục dọc: Điểm Tuần 4.<br>
+            Các chấm nằm trong vùng xanh lá là có sự cải thiện tích cực (Hướng về Siêu ngã hoặc Cân bằng).
+        </p>
+        <div style="height:400px;">
+            <canvas id="scatterChart"></canvas>
+        </div>
+    </div>
+
+</div>
+       <div style="border:1px solid #ddd; padding:15px; border-radius:8px; background:#fff; margin-top:30px;">
+    <h3 style="text-align:center; color:#004080;">3. SO SÁNH HIỆU QUẢ SỬ DỤNG THƯỚC SO VỚI NHÓM ĐỐI CHỨNG</h3>
+    <p style="font-size:12px; color:#666; text-align:center;">
+        *Biểu đồ cột nhóm so sánh tỷ lệ % người trả lời "Có" cho 9 câu hỏi khảo sát cuối cùng giữa 2 nhóm.
+    </p>
+    <div style="height:500px;">
+        <canvas id="compareGroupChart"></canvas>
+    </div>
+</div>
+<div style="border:1px solid #ddd; padding:15px; border-radius:8px; background:#fff; margin-top:30px;">
+    <h3 style="text-align:center; color:#004080;">4. XU HƯỚNG ĐÁNH GIÁ TRẢI NGHIỆM NGƯỜI DÙNG (THANG 1-5)</h3>
+    <p style="font-size:12px; color:#666; text-align:center;">
+        *Trục tung: Điểm đánh giá (1: Rất thấp -> 5: Rất cao) | Trục hoành: 4 Tuần thực hành.<br>
+        Mỗi đường mờ đại diện cho một người dùng cụ thể.
+    </p>
+    
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+        <div style="height:300px; border:1px dashed #eee; padding:10px;">
+            <canvas id="chartR1"></canvas>
+        </div>
+        <div style="height:300px; border:1px dashed #eee; padding:10px;">
+            <canvas id="chartR2"></canvas>
+        </div>
+        <div style="height:300px; border:1px dashed #eee; padding:10px;">
+            <canvas id="chartR3"></canvas>
+        </div>
+        <div style="height:300px; border:1px dashed #eee; padding:10px;">
+            <canvas id="chartSatResult"></canvas>
+        </div>
+        <div style="height:300px; border:1px dashed #eee; padding:10px; grid-column: span 2;">
+            <canvas id="chartSatTool"></canvas>
+        </div>
+    </div>
+</div>
+<div style="border:1px solid #ddd; padding:15px; border-radius:8px; background:#fff; margin-top:30px;">
+    <h3 style="text-align:center; color:#004080;">5 & 6. TỔNG ĐIỂM & TẦN SUẤT TƯƠNG TÁC QUA 4 TUẦN</h3>
+    <p style="font-size:12px; color:#666; text-align:center;">
+        *Biểu đồ Spaghetti: Theo dõi sự biến thiên của tất cả người dùng đồng thời.<br>
+        Tổng điểm = Tổng giá trị các lần gạt trong tuần | Số lần gạt = Tần suất sử dụng thước.
+    </p>
+    
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+        <div style="height:350px; border:1px dashed #eee; padding:10px;">
+            <canvas id="chartTotalScore"></canvas>
+        </div>
+        <div style="height:350px; border:1px dashed #eee; padding:10px;">
+            <canvas id="chartEntryCount"></canvas>
+        </div>
+    </div>
+</div>
+    </div>
+
+</div>
+<button onclick="standardizeCycles()" class="btn-sync" style="background: #2c3e50; border: none; margin-left: 10px;">
+    ⚖️ QUY CHUẨN 4 CHU KỲ
+</button>
+        <button onclick="updateSystemConfig()" class="btn-sync">
+            🚀 ĐỒNG BỘ HỆ THỐNG
+        </button>
+        
+        <div id="sysMsg" style="color: #2e7d32; font-weight: bold; font-size: 13px; display: none;">✅ Đã cập nhật!</div>
+
+        <div style="width: 1px; height: 30px; background: #eee; margin: 0 10px;"></div>
+
+        <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Tìm tên, lớp, SĐT..." class="inp-style">
+        </div>
+
+        <div class="total-badge">
+            Hồ sơ: <span id="userCount">0</span>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+        <div class="left-panel">
+            <table class="main-table" id="userTable">
+               <thead>
+    <tr>
+        <th style="width: 50px; text-align: center;">
+            <input type="checkbox" id="selectAll" class="chk-user" onchange="toggleSelectAll()">
+        </th>
+        <th onclick="sortTable(1)" style="width: 25%">Họ và Tên ⬍</th>
+        <th onclick="sortTable(2)" style="width: 15%">Đối tượng ⬍</th>
+        <th style="width: 30%">Thông tin chi tiết</th>
+        <th onclick="sortTable(5)" style="width: 15%">Trạng thái</th>
+        <th style="text-align:center; width: 10%">Xử lý</th>
+    </tr>
+</thead>
+                <tbody id="userTableBody">
+                    <tr><td colspan="5" style="text-align:center; padding:30px; color:#888;">Đang tải dữ liệu...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="right-panel" id="detailPanel">
+            <div class="empty-state">
+                <span class="empty-icon">👈</span>
+                <h3>Chưa chọn hồ sơ nào</h3>
+                <p>Vui lòng nhấn vào một dòng bên trái để xem chi tiết.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. CẤU HÌNH FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyBvSBloHwRCvWNzt37ThhxuPqVqgQfohlo",
+            authDomain: "freudruler.firebaseapp.com",
+            databaseURL: "https://freudruler-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "freudruler",
+            storageBucket: "freudruler.firebasestorage.app",
+            messagingSenderId: "907969291678",
+            appId: "1:907969291678:web:e0e99eb6550a31bd42a28f"
+        };
+
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const usersRef = db.ref('users');
+        const configRef = db.ref('system_config');
+
+        let usersData = [];
+        let selectedUserId = null; // Lưu ID đang chọn
+// --- [MỚI] Biến dùng cho tính năng Cắt/Dán ---
+let adminClipboard = null; // Lưu entry đang được cắt { entry: object, sourceCycleIndex: number, userId: string }
+        // 2. XỬ LÝ CẤU HÌNH HỆ THỐNG
+        configRef.on('value', (snap) => {
+            const conf = snap.val();
+            if(conf) {
+                if(conf.startTime) {
+                    const d = new Date(conf.startTime);
+                    const pad = (n) => n < 10 ? '0'+n : n;
+                    const localIso = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+                    document.getElementById('sysStartTime').value = localIso;
+                }
+                if(conf.durationMinutes) document.getElementById('sysDuration').value = conf.durationMinutes;
+            }
+        });
+
+        function updateSystemConfig() {
+            const tVal = document.getElementById('sysStartTime').value;
+            const dVal = document.getElementById('sysDuration').value;
+
+            if(!tVal || !dVal) { alert("Vui lòng nhập đủ thông tin!"); return; }
+
+            const startTs = new Date(tVal).getTime();
+            const durationMs = parseInt(dVal) * 60 * 1000;
+
+            if(confirm("⚠️ CẢNH BÁO: Hành động này sẽ RESET chu kỳ của TẤT CẢ người dùng. Tiếp tục?")) {
+                configRef.set({
+                    startTime: startTs,
+                    durationMs: durationMs,
+                    durationMinutes: parseInt(dVal),
+                    updatedAt: firebase.database.ServerValue.TIMESTAMP
+                }).then(() => {
+                    const msg = document.getElementById('sysMsg');
+                    msg.style.display = 'inline';
+                    setTimeout(() => msg.style.display = 'none', 3000);
+                });
+            }
+        }
+
+        // 3. XỬ LÝ DỮ LIỆU USER
+        function normalizeUserType(type) {
+            if (!type) return 'Chưa xác định';
+            const t = type.toLowerCase();
+            if (t.includes('student') || t.includes('học sinh')) return 'Học sinh';
+            if (t.includes('resident') || t.includes('người dân')) return 'Người dân';
+            return 'Khác';
+        }
+
+        usersRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            usersData = [];
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    const u = data[key];
+                    u.id = key;
+                    
+                    // Logic xử lý lịch sử
+                    if (u.history && Array.isArray(u.history)) {
+                        u.processedHistory = u.history;
+                    } else if (u.cycles) {
+                        u.processedHistory = Object.keys(u.cycles).map(k => {
+                            const c = u.cycles[k];
+                            c.endTime = c.endTime || parseInt(k) || Date.now();
+                            c.avgScore = (c.currentState && c.currentState.score) ? c.currentState.score : 0;
+                            return c;
+                        }).sort((a,b) => b.endTime - a.endTime);
+                    } else {
+                        u.processedHistory = [];
+                    }
+
+                    // Lấy trạng thái gần nhất
+                    if (u.processedHistory.length > 0) {
+                        const last = u.processedHistory[0];
+                        u.lastDate = last.endTime;
+                        u.lastScore = last.avgScore;
+                    } else {
+                        u.lastDate = 0;
+                        u.lastScore = null;
+                    }
+                    usersData.push(u);
+                });
+                
+                document.getElementById('userCount').textContent = usersData.length;
+                renderTable(usersData);
+                
+                // Nếu đang chọn user nào đó, refresh lại detail của họ
+                if(selectedUserId) showDetail(selectedUserId);
+            } else {
+                document.getElementById('userTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Chưa có dữ liệu</td></tr>';
+            }
+        });
+
+       // --- SỬA LẠI HÀM renderTable ---
+// --- [CẬP NHẬT] HÀM RENDER TABLE ---
+function renderTable(list) {
+    const tbody = document.getElementById('userTableBody');
+    tbody.innerHTML = '';
+    
+    // 1. Kiểm tra xem có bao nhiêu dòng đang được chọn
+    const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+    const selectedIds = Array.from(checkedBoxes).map(cb => cb.value);
+    const hasSelection = selectedIds.length > 0;
+
+    // Cập nhật số lượng trên nút Xóa nhiều (nếu bạn đã làm ở bước trước)
+    if(document.getElementById('selectedCount')) {
+        document.getElementById('selectedCount').innerText = selectedIds.length;
+        document.getElementById('btnBulkDelete').style.display = hasSelection ? 'inline-flex' : 'none';
+    }
+
+    list.forEach(user => {
+        const p = user.profile || {};
+        const type = normalizeUserType(p.userType);
+        
+        // --- XỬ LÝ 1: HIỂN THỊ TRÌNH DUYỆT ---
+        // Lấy thông tin browser (giả sử user có trường p.browser)
+        let browserHtml = '';
+        if (p.browser) {
+            let icon = '🌐';
+            if (p.browser.toLowerCase().includes('chrome')) icon = '🔵';
+            else if (p.browser.toLowerCase().includes('safari')) icon = '🧭';
+            else if (p.browser.toLowerCase().includes('firefox')) icon = '🦊';
+            else if (p.browser.toLowerCase().includes('edge')) icon = '🌊';
+            
+            browserHtml = `<span class="browser-badge" title="${p.browser}">${icon} ${p.browser}</span>`;
+        }
+
+        // Tạo chi tiết phụ
+        let detail = '';
+        if (type === 'Học sinh') detail = `<b>${p.className || '?'}</b> - ${p.schoolName || ''}`;
+        else if (type === 'Người dân') detail = `${p.phone || ''}`;
+        else detail = `${p.birthYear || ''}`;
+
+        // Badge trạng thái điểm
+        let badge = '<span class="badge bg-gray">--</span>';
+        if (user.lastScore !== null) {
+            const s = user.lastScore;
+            if (s <= -6667) badge = `<span class="badge bg-purple">Tím (${s.toFixed(0)})</span>`;
+            else if (s <= -3334) badge = `<span class="badge bg-red">Đỏ (${s.toFixed(0)})</span>`;
+            else if (s >= 6667) badge = `<span class="badge bg-amber">Vàng (${s.toFixed(0)})</span>`;
+            else if (s >= 3334) badge = `<span class="badge bg-blue">Xanh (${s.toFixed(0)})</span>`;
+            else badge = `<span class="badge bg-green">Lục (${s.toFixed(0)})</span>`;
+        }
+
+        const tr = document.createElement('tr');
+        tr.id = `row-${user.id}`;
+        
+        // Kiểm tra xem dòng này có đang được check không
+        const isChecked = selectedIds.includes(user.id);
+        
+        // Sự kiện click dòng
+        tr.onclick = (e) => {
+            if(e.target.type === 'checkbox' || e.target.tagName === 'BUTTON') return;
+            showDetail(user.id);
+        };
+
+        // --- XỬ LÝ 2: NÚT HÀNH ĐỘNG THÔNG MINH ---
+        let actionBtn = '';
+        if (hasSelection) {
+            // Nếu đang có dòng được chọn
+            if (isChecked) {
+                // Dòng này đang được chọn làm NGUỒN -> Hiện chữ "Nguồn"
+                actionBtn = `<span style="color:#c0392b; font-weight:bold; font-size:12px;">🔻 Nguồn</span>`;
+            } else {
+                // Dòng này KHÔNG được chọn -> Có thể làm ĐÍCH -> Hiện nút Gộp
+                actionBtn = `<button class="btn-merge-into" onclick="mergeSelectedUsersInto('${user.id}', '${p.fullName || 'User'}')">
+                                ⬅ Gộp vào đây
+                             </button>`;
+            }
+        } else {
+            // Trạng thái bình thường -> Nút Xóa
+            actionBtn = `<button class="btn-delete" onclick="handleRowAction('${user.id}', event)">Xóa</button>`;
+        }
+
+        tr.innerHTML = `
+            <td style="text-align:center;">
+                <input type="checkbox" class="chk-user row-checkbox" value="${user.id}" 
+                    ${isChecked ? 'checked' : ''} 
+                    onchange="reRenderPreservingSelection()">
+            </td>
+            <td style="font-weight:600; color:var(--primary);">
+                ${p.fullName || 'Ẩn danh'}
+                ${browserHtml} 
+            </td>
+            <td>${type}</td>
+            <td style="color:#555;">${detail}</td>
+            <td>${badge}</td>
+            <td style="text-align:center;">
+                ${actionBtn}
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// Hàm phụ trợ: Render lại bảng nhưng giữ nguyên trạng thái checkbox để cập nhật nút bấm
+function reRenderPreservingSelection() {
+    // Chỉ render lại UI, dữ liệu 'currentData' lấy từ biến toàn cục (đã có ở code cũ)
+    renderTable(currentData); 
+    updateBulkBtnState(); // Cập nhật nút xóa nhiều ở trên toolbar
+}
+
+
+
+// --- DỮ LIỆU CÂU HỎI KHẢO SÁT (Copy từ Index sang) ---
+const QUESTIONS_DB = {
+    user: [
+        "1. Thước có giúp nhìn nhận nội tâm?",
+        "2. Giúp giảm xung đột/bớt bốc đồng?",
+        "3. Có trung thực khi gạt thước?",
+        "4. Nhận ra khuynh hướng tâm lý lặp lại?",
+        "5. Gạt lên (việc tốt) thấy hạnh phúc?",
+        "6. Gạt xuống (việc xấu) thấy tội lỗi?",
+        "7. Tăng năng lực đồng cảm/trách nhiệm?",
+        "8. Tín hiệu cảnh báo giúp xa rời bản năng?",
+        "9. Hình thành thói quen suy nghĩ kỹ?"
+    ],
+    control: [
+        "1. Có thường xuyên tự nhìn nhận nội tâm?",
+        "2. Hay bị stress khi căng thẳng?",
+        "3. Tự đánh giá tính trung thực cao?",
+        "4. Nhận thức rõ khuynh hướng tâm lý?",
+        "5. Làm việc thiện thấy hạnh phúc?",
+        "6. Làm việc xấu thấy tội lỗi?",
+        "7. Thường xuyên đồng cảm/trách nhiệm?",
+        "8. Có động lực cụ thể để hướng thiện?",
+        "9. Có thói quen suy nghĩ kỹ trước khi làm?"
+    ]
+};
+        function showDetail(userId) {
+    // Cập nhật UI hàng được chọn
+    const rows = document.querySelectorAll('tr');
+    rows.forEach(r => r.classList.remove('active-row'));
+    const activeRow = document.getElementById(`row-${userId}`);
+    if(activeRow) activeRow.classList.add('active-row');
+    
+    selectedUserId = userId;
+
+    const user = usersData.find(u => u.id === userId);
+    const panel = document.getElementById('detailPanel');
+
+    if (!user) {
+        panel.innerHTML = '<div class="empty-state"><h3>Hồ sơ không tồn tại</h3></div>';
+        return;
+    }
+
+    const p = user.profile || {};
+    const type = normalizeUserType(p.userType);
+
+    // Xây dựng thông tin cá nhân
+    let infoHTML = '';
+    if(type === 'Học sinh'){
+        infoHTML = `
+            <div class="info-box"><div class="info-label">Lớp</div><div class="info-val">${p.className || '--'}</div></div>
+            <div class="info-box"><div class="info-label">Trường</div><div class="info-val">${p.schoolName || '--'}</div></div>
+        `;
+    } else {
+        infoHTML = `
+            <div class="info-box"><div class="info-label">Số điện thoại</div><div class="info-val">${p.phone || '--'}</div></div>
+            <div class="info-box"><div class="info-label">Địa chỉ</div><div class="info-val">${p.address || '--'}</div></div>
+        `;
+    }
+
+    let profileCard = `
+        <div class="detail-header-card">
+            <div class="detail-name">${p.fullName || 'Chưa đặt tên'}</div>
+            <div class="detail-sub">
+                <span class="badge bg-blue">${type}</span>
+                <span>• ID: ${userId}</span>
+                <span>• Giới tính: ${p.gender || '--'}</span>
+            </div>
+            <div class="info-grid">
+                ${infoHTML}
+            </div>
+        </div>
+    `;
+
+    // --- [MỚI] HIỂN THỊ KẾT QUẢ KHẢO SÁT TỔNG KẾT (FINAL SURVEY) ---
+    let surveyHTML = '';
+    if (user.finalSurveyV2) {
+        const fs = user.finalSurveyV2;
+        const groupKey = fs.group === 'Người Dùng Thước' ? 'user' : 'control';
+        const questions = QUESTIONS_DB[groupKey] || [];
+        const answers = fs.answers || {};
+        const timeStr = fs.timestamp ? new Date(fs.timestamp).toLocaleString('vi-VN') : '--';
+
+        let qListHTML = '';
+        questions.forEach((qText, idx) => {
+            const ansVal = answers[idx]; // 'yes' hoặc 'no'
+            const ansDisplay = ansVal === 'yes' ? 
+                `<span class="ans-tag ans-yes">CÓ</span>` : 
+                (ansVal === 'no' ? `<span class="ans-tag ans-no">KHÔNG</span>` : `<span class="ans-tag" style="background:#eee">--</span>`);
+            
+            qListHTML += `<div class="q-row">
+                <span style="flex:1; padding-right:10px;">${qText}</span>
+                ${ansDisplay}
+            </div>`;
+        });
+
+        surveyHTML = `
+            <div class="survey-result-card">
+                <div class="survey-title">📊 KẾT QUẢ KHẢO SÁT TỔNG KẾT</div>
+                <div class="survey-meta">
+                    <span>👥 Nhóm: ${fs.group}</span>
+                    <span>🕒 Gửi lúc: ${timeStr}</span>
+                </div>
+                <div>${qListHTML}</div>
+            </div>
+        `;
+    }
+
+    // Xây dựng lịch sử
+    let historyHTML = '';
+    if (user.processedHistory.length === 0) {
+        historyHTML = '<div style="text-align:center; padding:40px; color:#999; border:2px dashed #eee; border-radius:8px;">Chưa có dữ liệu nhật ký nào.</div>';
+    } else {
+        user.processedHistory.forEach((cycle, index) => { 
+            const cycleNum = user.processedHistory.length - index;
+            const avgScore = cycle.avgScore;
+            
+            // --- [MỚI] TÍNH TOÁN TỔNG ĐIỂM & SỐ LẦN GẠT ---
+            const entries = cycle.entries || [];
+            const entryCount = entries.length;
+            const totalScore = entries.reduce((sum, e) => sum + (Number(e.value) || 0), 0);
+            // ------------------------------------------------
+
+            const catInfo = getCategoryInfo(avgScore);
+            const startObj = formatDateTime(cycle.startTime || cycle.endTime); 
+            const fb = cycle.feedback || {};
+
+            historyHTML += `<div class="cycle-card ${catInfo.class}">
+                <div class="card-header">
+                    <div>
+                        <strong style="font-size:15px;">Chu kỳ ${cycleNum}</strong>
+                        <div style="font-size:12px; color:#666; font-weight:normal;">${startObj.time} - ${startObj.date}</div>
+                        
+                        <div class="cycle-stats">
+                            <span>🔢 Số lần gạt: <b>${entryCount}</b></span>
+                            <span>∑ Tổng điểm: <b>${totalScore > 0 ? '+' : ''}${totalScore}</b></span>
+                        </div>
+                    </div>
+                    <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
+                        <div style="font-size:16px; font-weight:bold;">${catInfo.emoji} TB: ${avgScore > 0 ? '+' : ''}${Number(avgScore).toFixed(1)}</div>
+                        
+                        <div style="display:flex; gap:5px;">
+                            ${adminClipboard ? `<button onclick="pasteEntry('${userId}', ${index})" style="background:#2ecc71; color:white; border:none; border-radius:4px; padding:2px 8px; cursor:pointer; font-size:10px;">📋 Dán</button>` : ''}
+                            <button onclick="deleteCycle('${userId}', ${index})" style="background:transparent; border:1px solid #d93025; color:#d93025; border-radius:4px; cursor:pointer; font-size:10px; padding:2px 5px;">🗑️ Xóa</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="log-container">
+                    <table class="log-table" width="100%">
+                        <thead><tr><th>Thời gian</th><th>Điểm</th><th>Khuynh hướng</th></tr></thead>
+                        <tbody>`;
+                        
+            if (entries.length === 0) {
+                historyHTML += `<tr><td colspan="3" style="text-align:center; color:#ccc; padding:10px;">Trống</td></tr>`;
+            } else {
+                entries.forEach((e, entryIndex) => {
+                    const val = Number(e.value || 0);
+                    const info = getCategoryInfo(val);
+                    const tStr = e.time || (e.ts ? formatDateTime(e.ts).time : '--');
+                    const dStr = e.date || (e.ts ? formatDateTime(e.ts).date : ''); 
+
+                    historyHTML += `<tr>
+                        <td>
+                            <strong>${tStr}</strong><br>
+                            <span style="font-size:11px; color:#888;">${dStr}</span>
+                        </td>
+                        <td style="font-weight:bold; color:${info.color}">${val > 0 ? '+' : ''}${val}</td>
+                        <td style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>${info.emoji} ${info.label}</span>
+                            <button onclick="cutEntry('${userId}', ${index}, ${entryIndex})" style="border:1px solid #aaa; background:#fff; color:#333; cursor:pointer; border-radius:3px; padding:1px 5px; font-size:10px;">✂️</button>
+                        </td>
+                    </tr>`;
+                });
+            }
+            historyHTML += `</tbody></table></div>`;
+
+            // Feedback
+            if (fb && (fb.q1 || fb.content)) {
+                historyHTML += `<div class="saved-data">
+                    <div class="saved-item"><span class="saved-label">📝 Sự kiện:</span> ${fb.q1 || fb.content || '--'}</div>
+                    <div class="saved-item"><span class="saved-label">⚔️ Xung đột:</span> ${fb.q2 || '--'}</div>
+                    <div class="saved-item"><span class="saved-label">💡 Bài học:</span> ${fb.q3 || '--'}</div>
+                    <hr style="border-top:1px dashed #ccc; margin:10px 0;">
+                    <div style="font-size:12px; color:#555;">
+                        📱 Giao diện: ${renderStars(fb.r1)} | 🧠 Hiểu mình: ${renderStars(fb.r2)} | 🦋 Thay đổi: ${renderStars(fb.r3)}
+                    </div>
+                    <div style="margin-top:5px; font-size:12px; font-weight:bold;">
+                        😊 Hài lòng: ${renderEmoji(fb.satResult)} | 📏 Thước: ${renderEmoji(fb.satTool)}
+                    </div>
+                </div>`;
+            } else {
+                historyHTML += `<div style="padding:15px; text-align:center; font-size:13px; color:#aaa;">Chưa viết nhật ký phản tư.</div>`;
+            }
+            historyHTML += `</div>`;
+        });
+    }
+
+    // Ghép SurveyHTML vào panel (đặt sau ProfileCard và trước History)
+    panel.innerHTML = profileCard + surveyHTML + `<h3 style="color:var(--primary); margin:20px 0 10px 0;">📜 Lịch sử Hoạt động</h3>` + historyHTML;
+}
+
+        function deleteUser(id, event) {
+            event.stopPropagation();
+            if (confirm("⛔ CẢNH BÁO: Xóa hồ sơ này sẽ mất vĩnh viễn dữ liệu. Bạn có chắc chắn?")) {
+                db.ref('users/' + id).remove()
+                    .then(() => {
+                        // Nếu đang xem user bị xóa thì reset panel phải
+                        if(selectedUserId === id) {
+                            document.getElementById('detailPanel').innerHTML = '<div class="empty-state"><h3>Đã xóa hồ sơ</h3></div>';
+                            selectedUserId = null;
+                        }
+                    })
+                    .catch(err => alert("Lỗi: " + err.message));
+            }
+        }
+
+        // 5. CÁC HÀM BỔ TRỢ (HELPERS)
+        function getCategoryInfo(val) {
+            const n = Number(val || 0);
+            if (n <= -6667) return { label: 'Bản năng mạnh', emoji: '😈', class: 'color-purple', color: '#8e44ad' };
+            if (n <= -3334) return { label: 'Bản năng vừa',  emoji: '🔥', class: 'color-red', color: '#e74c3c' };
+            if (n >= 6667)  return { label: 'Siêu ngã mạnh',  emoji: '😇', class: 'color-amber', color: '#d4ac0d' };
+            if (n >= 3334)  return { label: 'Siêu ngã vừa',   emoji: '🕊️', class: 'color-blue', color: '#1976d2' };
+            return { label: 'Cân bằng', emoji: '👤', class: 'color-green', color: '#2e7d32' };
+        }
+
+        function renderStars(val) {
+            let h = '';
+            for(let i=1; i<=5; i++) h += (i<=val ? '★' : '☆');
+            return `<span style="color:#f1c40f;">${h}</span>`;
+        }
+        
+        function renderEmoji(val) {
+            const emojis = ['😡', '☹️', '😐', '🙂', '😍'];
+            return (!val || val < 1) ? '--' : emojis[val-1];
+        }
+
+        function formatDateTime(ts) {
+            if(!ts) return {time:'', date:''};
+            const d = new Date(ts);
+            return {
+                time: d.toLocaleTimeString('vi-VN', {hour12:false}),
+                date: d.toLocaleDateString('vi-VN')
+            };
+        }
+
+        // Sort & Search
+        let sortCol = -1, sortAsc = true;
+        function sortTable(colIndex) {
+            sortAsc = (sortCol === colIndex) ? !sortAsc : true;
+            sortCol = colIndex;
+            usersData.sort((a, b) => {
+                let v1, v2;
+                const pA = a.profile || {}, pB = b.profile || {};
+                switch(colIndex) {
+                    case 1: v1 = pA.fullName || ''; v2 = pB.fullName || ''; break;
+                    case 2: v1 = normalizeUserType(pA.userType); v2 = normalizeUserType(pB.userType); break;
+                    case 5: v1 = a.lastScore || 0; v2 = b.lastScore || 0; break;
+                    default: return 0;
+                }
+                if (v1 < v2) return sortAsc ? -1 : 1;
+                if (v1 > v2) return sortAsc ? 1 : -1;
+                return 0;
+            });
+            renderTable(usersData);
+        }
+
+        function filterTable() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = usersData.filter(u => {
+                const p = u.profile || {};
+                return `${p.fullName} ${p.className} ${p.phone} ${p.address}`.toLowerCase().includes(term);
+            });
+            renderTable(filtered);
+        }
+// ============================================================
+// [MỚI] CÁC TÍNH NĂNG QUẢN TRỊ NÂNG CAO (Xóa Cycle, Cut/Paste Entry)
+// ============================================================
+
+// 1. Hàm tính toán lại điểm trung bình của một chu kỳ
+function recalcCycle(cycle) {
+    if (!cycle.entries || cycle.entries.length === 0) {
+        cycle.avgScore = 0;
+        return;
+    }
+    const sum = cycle.entries.reduce((a, b) => a + (Number(b.value) || 0), 0);
+    cycle.avgScore = Math.round((sum / cycle.entries.length) * 10) / 10;
+}
+
+// 2. Hàm lưu dữ liệu lịch sử mới lên Firebase
+function saveUserHistory(userId, newHistory) {
+    db.ref('users/' + userId + '/history').set(newHistory)
+        .then(() => {
+            // Không cần alert để thao tác cho nhanh, UI tự update nhờ on('value')
+            console.log("Đã cập nhật lịch sử cho user " + userId);
+        })
+        .catch(err => alert("Lỗi lưu: " + err.message));
+}
+
+// 3. Xóa toàn bộ một chu kỳ
+function deleteCycle(userId, cycleIndex) {
+    if(!confirm("⚠️ CẢNH BÁO: Bạn có chắc muốn XÓA VĨNH VIỄN chu kỳ này?")) return;
+    
+    const user = usersData.find(u => u.id === userId);
+    if (!user || !user.processedHistory) return;
+
+    // cycleIndex tính từ 0 (mới nhất). Xóa phần tử tại index đó.
+    user.processedHistory.splice(cycleIndex, 1);
+    
+    saveUserHistory(userId, user.processedHistory);
+}
+
+// 4. Cắt (Cut) một lần gạt
+function cutEntry(userId, cycleIndex, entryIndex) {
+    const user = usersData.find(u => u.id === userId);
+    const entry = user.processedHistory[cycleIndex].entries[entryIndex];
+    
+    // Lưu vào bộ nhớ tạm
+    adminClipboard = {
+        entry: entry,
+        sourceUserId: userId // Chỉ cho phép dán trong cùng 1 user để tránh lỗi
+    };
+    
+    // Xóa khỏi chu kỳ cũ
+    user.processedHistory[cycleIndex].entries.splice(entryIndex, 1);
+    
+    // Tính lại điểm chu kỳ cũ
+    recalcCycle(user.processedHistory[cycleIndex]);
+    
+    // Lưu lên Firebase
+    saveUserHistory(userId, user.processedHistory);
+    
+    alert("✂️ Đã cắt! Hãy đến chu kỳ khác và bấm 'Dán'.");
+}
+
+// 5. Dán (Paste) lần gạt vào chu kỳ mới
+function pasteEntry(userId, cycleIndex) {
+    if (!adminClipboard) return;
+    if (adminClipboard.sourceUserId !== userId) {
+        alert("⛔ Chỉ được cắt dán trong cùng một người dùng!");
+        return;
+    }
+
+    const user = usersData.find(u => u.id === userId);
+    
+    // Thêm vào chu kỳ đích
+    if (!user.processedHistory[cycleIndex].entries) user.processedHistory[cycleIndex].entries = [];
+    user.processedHistory[cycleIndex].entries.push(adminClipboard.entry);
+    
+    // Sắp xếp lại theo thời gian (để hiển thị đúng thứ tự)
+    user.processedHistory[cycleIndex].entries.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+
+    // Tính lại điểm chu kỳ đích
+    recalcCycle(user.processedHistory[cycleIndex]);
+
+    // Lưu và xóa clipboard
+    saveUserHistory(userId, user.processedHistory);
+    adminClipboard = null; // Reset sau khi dán
+}
+// ============================================================
+// [TÍNH NĂNG CAO CẤP] GỘP USER (MERGE USERS)
+// ============================================================
+let isMergeMode = false;
+let mergeSourceId = null; // ID của user sẽ bị xóa (chuyển dữ liệu đi)
+
+function toggleMergeMode() {
+    isMergeMode = !isMergeMode;
+    mergeSourceId = null; // Reset lựa chọn
+    
+    const btn = document.getElementById('btnMergeMode');
+    const msg = document.getElementById('mergeMsg');
+    
+    if (isMergeMode) {
+        btn.style.background = '#e67e22';
+        btn.textContent = '❌ HỦY GỘP';
+        msg.style.display = 'inline';
+        msg.textContent = '👇 Bước 1: Chọn User "Rác" (User muốn lấy dữ liệu rồi xóa đi)';
+    } else {
+        btn.style.background = '#f39c12';
+        btn.textContent = '🧩 CHẾ ĐỘ GỘP USER';
+        msg.style.display = 'none';
+    }
+    renderTable(usersData); // Vẽ lại bảng để đổi nút Xóa -> Chọn Gộp
+}
+
+// Hàm xử lý khi bấm nút ở cột cuối cùng
+function handleRowAction(userId, event) {
+    event.stopPropagation(); // Tránh kích hoạt xem chi tiết
+    
+    if (!isMergeMode) {
+        // Chế độ thường -> Xóa User
+        deleteUser(userId, event);
+        return;
+    }
+
+    // Chế độ Gộp
+    if (!mergeSourceId) {
+        // BƯỚC 1: Chọn Nguồn
+        mergeSourceId = userId;
+        document.getElementById('mergeMsg').textContent = `👉 Đã chọn Nguồn. Bước 2: Chọn User ĐÍCH (User chính muốn giữ lại)`;
+        // Highlight dòng nguồn để dễ nhìn (bạn có thể CSS thêm nếu muốn)
+        alert("Đã chọn user NGUỒN. Giờ hãy bấm vào user ĐÍCH (user bạn muốn gộp dữ liệu vào).");
+    } else {
+        // BƯỚC 2: Chọn Đích -> Thực hiện Gộp
+        if (userId === mergeSourceId) {
+            alert("⛔ Không thể gộp user vào chính nó! Vui lòng chọn user khác.");
+            return;
+        }
+        performMerge(mergeSourceId, userId);
+    }
+}
+
+function performMerge(sourceId, targetId) {
+    const sourceUser = usersData.find(u => u.id === sourceId);
+    const targetUser = usersData.find(u => u.id === targetId);
+
+    if (!sourceUser || !targetUser) return;
+
+    if (!confirm(`⚠️ XÁC NHẬN GỘP:\n\nChuyển toàn bộ lịch sử của [${sourceUser.profile.fullName}] sang cho [${targetUser.profile.fullName}]?\n\nLưu ý: User nguồn [${sourceId}] sẽ bị XÓA VĨNH VIỄN sau khi gộp.`)) {
+        // Reset nếu hủy
+        toggleMergeMode(); 
+        toggleMergeMode(); // Tắt đi bật lại để reset
+        return;
+    }
+
+    // 1. Lấy lịch sử từ 2 bên
+    const sourceHistory = sourceUser.processedHistory || [];
+    const targetHistory = targetUser.processedHistory || [];
+
+    // 2. Gộp lại (Nối mảng)
+    const mergedHistory = targetHistory.concat(sourceHistory);
+
+    // 3. Sắp xếp lại theo thời gian (Mới nhất lên đầu)
+    mergedHistory.sort((a, b) => {
+        const tA = a.startTime || a.endTime || 0;
+        const tB = b.startTime || b.endTime || 0;
+        return tB - tA; // Giảm dần
+    });
+
+    // 4. Cập nhật User Đích trên Firebase
+    db.ref('users/' + targetId + '/history').set(mergedHistory)
+    .then(() => {
+        // 5. Xóa User Nguồn trên Firebase
+        return db.ref('users/' + sourceId).remove();
+    })
+    .then(() => {
+        alert("✅ Gộp thành công! Dữ liệu đã được chuyển sang user đích.");
+        // Reset chế độ
+        isMergeMode = false;
+        mergeSourceId = null;
+        document.getElementById('btnMergeMode').textContent = '🧩 CHẾ ĐỘ GỘP USER';
+        document.getElementById('btnMergeMode').style.background = '#f39c12';
+        document.getElementById('mergeMsg').style.display = 'none';
+    })
+    .catch(err => alert("❌ Lỗi khi gộp: " + err.message));
+}
+// ============================================================
+// [MỚI] TÍNH NĂNG XÓA NHIỀU (BULK DELETE)
+// ============================================================
+
+// 1. Hàm bật/tắt chọn tất cả
+function toggleSelectAll() {
+    const masterCheck = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    
+    checkboxes.forEach(cb => {
+        // Chỉ check các dòng đang hiển thị (phục vụ cho cả lúc đang search/filter)
+        if(cb.offsetParent !== null) { 
+            cb.checked = masterCheck.checked;
+        }
+    });
+    updateBulkBtnState();
+}
+
+// 2. Cập nhật trạng thái nút Xóa Nhiều
+function updateBulkBtnState() {
+    const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+    const count = checkedBoxes.length;
+    const btn = document.getElementById('btnBulkDelete');
+    const countSpan = document.getElementById('selectedCount');
+
+    if (count > 0) {
+        btn.style.display = 'inline-flex';
+        countSpan.textContent = count;
+    } else {
+        btn.style.display = 'none';
+    }
+}
+
+// 3. Thực hiện xóa nhiều
+function deleteSelectedUsers() {
+    const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+    const idsToDelete = Array.from(checkedBoxes).map(cb => cb.value);
+    const count = idsToDelete.length;
+
+    if (count === 0) return;
+
+    // Yêu cầu xác nhận
+    const confirmMsg = `⚠️ CẢNH BÁO QUAN TRỌNG ⚠️\n\nBạn đang chuẩn bị XÓA VĨNH VIỄN ${count} hồ sơ người dùng.\n\nHành động này KHÔNG THỂ khôi phục.\nBạn có chắc chắn muốn tiếp tục?`;
+    
+    if (confirm(confirmMsg)) {
+        // Hiển thị trạng thái đang xóa (để tránh user bấm nhiều lần)
+        const btn = document.getElementById('btnBulkDelete');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '⏳ Đang xóa...';
+        btn.disabled = true;
+
+        // Sử dụng Promise.all để xóa đồng thời cho nhanh
+        const deletePromises = idsToDelete.map(id => {
+            return db.ref('users/' + id).remove();
+        });
+
+        Promise.all(deletePromises)
+            .then(() => {
+                alert(`✅ Đã xóa thành công ${count} người dùng.`);
+                // Reset UI
+                document.getElementById('selectAll').checked = false;
+                btn.style.display = 'none'; 
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                
+                // Nếu User đang xem chi tiết bị xóa thì reset panel phải
+                if (idsToDelete.includes(selectedUserId)) {
+                    document.getElementById('detailPanel').innerHTML = '<div class="empty-state"><h3>Hồ sơ đã bị xóa</h3></div>';
+                    selectedUserId = null;
+                }
+            })
+            .catch(error => {
+                alert("❌ Có lỗi xảy ra: " + error.message);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            });
+    }
+}
+// ============================================================
+// [MỚI] TÍNH NĂNG GỘP NHIỀU NGUỒN -> 1 ĐÍCH
+// ============================================================
+
+function mergeSelectedUsersInto(targetId, targetName) {
+    const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+    const sourceIds = Array.from(checkedBoxes).map(cb => cb.value);
+    
+    if (sourceIds.length === 0) return;
+
+    // Xác nhận
+    const confirmMsg = `🔵 GỘP DỮ LIỆU\n\n` +
+        `- User Đích (giữ lại): ${targetName}\n` +
+        `- User Nguồn (sẽ XÓA): ${sourceIds.length} user đã chọn\n\n` +
+        `Toàn bộ lịch sử làm bài của ${sourceIds.length} user nguồn sẽ được chuyển sang cho [${targetName}].\n` +
+        `Bạn có chắc chắn không?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    // Hiển thị loading
+    const row = document.getElementById(`row-${targetId}`);
+    if(row) row.style.opacity = '0.5';
+
+    // 1. Lấy dữ liệu của TẤT CẢ user nguồn và user đích
+    const allPromises = sourceIds.map(id => db.ref('users/' + id).once('value'));
+    allPromises.push(db.ref('users/' + targetId).once('value')); // Thêm đích vào cuối
+
+    Promise.all(allPromises).then(snapshots => {
+        const targetSnap = snapshots[snapshots.length - 1]; // Cái cuối là đích
+        const targetVal = targetSnap.val() || {};
+        let targetHistory = targetVal.processedHistory || []; // Lịch sử cũ của đích
+
+        // 2. Duyệt qua các nguồn để lấy lịch sử
+        let countMoved = 0;
+        for (let i = 0; i < snapshots.length - 1; i++) {
+            const sourceVal = snapshots[i].val();
+            if (sourceVal && sourceVal.processedHistory) {
+                // Nối lịch sử
+                targetHistory = targetHistory.concat(sourceVal.processedHistory);
+                countMoved += sourceVal.processedHistory.length;
+            }
+        }
+
+        // 3. Sắp xếp lại lịch sử theo thời gian (Mới nhất lên đầu)
+        targetHistory.sort((a, b) => {
+            const tA = a.endTime || a.startTime || 0;
+            const tB = b.endTime || b.startTime || 0;
+            return tB - tA;
+        });
+
+        // 4. Cập nhật User Đích
+        return db.ref('users/' + targetId + '/history').set(targetHistory);
+    })
+    .then(() => {
+        // 5. Xóa các User Nguồn
+        const deletePromises = sourceIds.map(id => db.ref('users/' + id).remove());
+        return Promise.all(deletePromises);
+    })
+    .then(() => {
+        alert("✅ Đã gộp thành công!");
+        // Reset checkbox
+        document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = false);
+        // Reset thanh công cụ xóa
+        updateBulkBtnState();
+    })
+    .catch(err => {
+        alert("❌ Lỗi: " + err.message);
+        if(row) row.style.opacity = '1';
+    });
+}
+// ============================================================
+// [MỚI] TÍNH NĂNG TỰ ĐỘNG GỘP TRÙNG TÊN (AUTO MERGE BY NAME)
+// ============================================================
+
+function autoMergeDuplicates() {
+    // 1. Tạo bản đồ gom nhóm theo tên
+    // Key: Tên (viết thường, bỏ dấu cách thừa) -> Value: Mảng các user object
+    let nameMap = {};
+
+    usersData.forEach(u => {
+        const p = u.profile || {};
+        const rawName = p.fullName || "";
+        // Chuẩn hóa tên: chữ thường + trim
+        const normName = rawName.trim().toLowerCase();
+
+        if (normName.length > 0) {
+            if (!nameMap[normName]) {
+                nameMap[normName] = [];
+            }
+            nameMap[normName].push(u);
+        }
+    });
+
+    // 2. Lọc ra các nhóm có trùng lặp (số lượng > 1)
+    let duplicateGroups = [];
+    Object.keys(nameMap).forEach(key => {
+        if (nameMap[key].length > 1) {
+            duplicateGroups.push(nameMap[key]);
+        }
+    });
+
+    if (duplicateGroups.length === 0) {
+        alert("✅ Tuyệt vời! Không phát hiện user nào trùng tên trong hệ thống.");
+        return;
+    }
+
+    // 3. Tính toán thống kê để báo cáo
+    let totalUsersToRemove = 0;
+    let namesList = "";
+    
+    duplicateGroups.forEach(group => {
+        totalUsersToRemove += (group.length - 1);
+        // Lấy tên hiển thị của người đầu tiên trong nhóm
+        namesList += `- ${group[0].profile.fullName} (${group.length} tài khoản)\n`;
+    });
+
+    // 4. Hộp thoại xác nhận quan trọng
+    const confirmMsg = `⚠️ PHÁT HIỆN TRÙNG LẶP!\n\n` +
+        `Hệ thống tìm thấy ${duplicateGroups.length} nhóm tên bị trùng (Tổng cộng ${totalUsersToRemove} tài khoản thừa sẽ bị xóa).\n\n` +
+        `Danh sách trùng:\n${namesList}\n` +
+        `❓ BẠN CÓ MUỐN GỘP TỰ ĐỘNG KHÔNG?\n` +
+        `Hành động này sẽ dồn toàn bộ chu kỳ lịch sử của các nick phụ về 1 nick chính và xóa nick phụ.`;
+
+    if (!confirm(confirmMsg)) return;
+
+    // 5. Thực hiện Gộp (Xử lý hàng loạt)
+    // Hiển thị trạng thái đang xử lý lên nút bấm (để user biết)
+    const btn = document.querySelector('button[onclick="autoMergeDuplicates()"]');
+    const oldText = btn.innerText;
+    btn.innerText = "⏳ Đang gộp...";
+    btn.disabled = true;
+
+    let updatePromises = [];
+    let removePromises = [];
+
+    duplicateGroups.forEach(group => {
+        // Sắp xếp nhóm: Ưu tiên giữ lại tài khoản có nhiều dữ liệu nhất làm "Đích"
+        // (Hoặc giữ nguyên logic lấy người đầu tiên nếu không quan trọng)
+        group.sort((a, b) => {
+            const lenA = (a.processedHistory || []).length;
+            const lenB = (b.processedHistory || []).length;
+            return lenB - lenA; // Người có nhiều lịch sử nhất đứng đầu (index 0)
+        });
+
+        const targetUser = group[0]; // User Đích (Giữ lại)
+        const sourceUsers = group.slice(1); // Các User Nguồn (Bị xóa)
+
+        let mergedHistory = targetUser.processedHistory || [];
+
+        // Duyệt qua các user nguồn để lấy dữ liệu
+        sourceUsers.forEach(src => {
+            if (src.processedHistory && src.processedHistory.length > 0) {
+                mergedHistory = mergedHistory.concat(src.processedHistory);
+            }
+            // Thêm vào danh sách cần xóa
+            removePromises.push(db.ref('users/' + src.id).remove());
+        });
+
+        // Sắp xếp lại lịch sử tổng hợp theo thời gian (Mới nhất lên đầu)
+        mergedHistory.sort((a, b) => {
+            const tA = a.endTime || a.startTime || 0;
+            const tB = b.endTime || b.startTime || 0;
+            return tB - tA;
+        });
+
+        // Thêm vào danh sách cần cập nhật User Đích
+        updatePromises.push(db.ref('users/' + targetUser.id + '/history').set(mergedHistory));
+    });
+
+    // 6. Chạy tất cả Promise đồng thời
+    Promise.all([...updatePromises, ...removePromises])
+        .then(() => {
+            alert(`✅ Đã gộp thành công ${duplicateGroups.length} nhóm tên!`);
+            // Reset nút
+            btn.innerText = oldText;
+            btn.disabled = false;
+        })
+        .catch(err => {
+            alert("❌ Lỗi xảy ra: " + err.message);
+            btn.innerText = oldText;
+            btn.disabled = false;
+        });
+}
+// ============================================================
+// [MỚI] TÍNH NĂNG DỌN DẸP CHU KỲ RỖNG (100% EMPTY)
+// ============================================================
+
+function deleteAllEmptyCycles() {
+    // 1. Thống kê trước khi xóa
+    let totalEmptyCycles = 0;
+    let affectedUsers = 0;
+
+    // Quét sơ bộ để đếm
+    usersData.forEach(user => {
+        if (!user.processedHistory || user.processedHistory.length === 0) return;
+
+        const emptyCount = user.processedHistory.filter(c => isCycleEmpty(c)).length;
+        if (emptyCount > 0) {
+            totalEmptyCycles += emptyCount;
+            affectedUsers++;
+        }
+    });
+
+    if (totalEmptyCycles === 0) {
+        alert("✅ Hệ thống rất sạch! Không tìm thấy chu kỳ rỗng nào.");
+        return;
+    }
+
+    // 2. Hỏi xác nhận
+    const confirmMsg = `🧹 DỌN DẸP HỆ THỐNG\n\n` +
+        `Tìm thấy: ${totalEmptyCycles} chu kỳ rỗng (của ${affectedUsers} user).\n` +
+        `Điều kiện xóa: KHÔNG gạt thước + KHÔNG viết chữ + KHÔNG chấm sao/emoji.\n\n` +
+        `Bạn có muốn xóa ngay không?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    // 3. Thực hiện xóa
+    const btn = document.querySelector('button[onclick="deleteAllEmptyCycles()"]');
+    const oldText = btn.innerText;
+    btn.innerText = "⏳ Đang dọn...";
+    btn.disabled = true;
+
+    const updatePromises = [];
+
+    usersData.forEach(user => {
+        if (!user.processedHistory) return;
+
+        const originalLength = user.processedHistory.length;
+        
+        // Lọc: Giữ lại những chu kỳ KHÔNG rỗng
+        // (Tức là chỉ xóa những cái rỗng hoàn toàn)
+        const cleanHistory = user.processedHistory.filter(c => !isCycleEmpty(c));
+
+        // Nếu số lượng thay đổi -> Có chu kỳ rác -> Cập nhật lên Firebase
+        if (cleanHistory.length < originalLength) {
+            updatePromises.push(
+                db.ref('users/' + user.id + '/history').set(cleanHistory)
+            );
+        }
+    });
+
+    Promise.all(updatePromises)
+        .then(() => {
+            alert(`✅ Đã dọn sạch ${totalEmptyCycles} chu kỳ rác!`);
+            btn.innerText = oldText;
+            btn.disabled = false;
+        })
+        .catch(err => {
+            alert("❌ Lỗi: " + err.message);
+            btn.innerText = oldText;
+            btn.disabled = false;
+        });
+}
+
+// Hàm kiểm tra kỹ xem chu kỳ có dữ liệu hay không
+// Trả về TRUE nếu chu kỳ HOÀN TOÀN TRỐNG (Rác)
+function isCycleEmpty(cycle) {
+    // 1. Kiểm tra gạt thước
+    if (cycle.entries && cycle.entries.length > 0) return false; // Có gạt -> Giữ
+
+    // 2. Kiểm tra phản tư & đánh giá
+    const fb = cycle.feedback || {};
+    
+    // Kiểm tra có viết chữ không (q1, q2, q3)
+    if (fb.q1 || fb.q2 || fb.q3) return false; // Có chữ -> Giữ
+
+    // Kiểm tra đánh giá sao (r1, r2, r3)
+    if (fb.r1 > 0 || fb.r2 > 0 || fb.r3 > 0) return false; // Có sao -> Giữ
+
+    // Kiểm tra Emoji (satResult, satTool)
+    if (fb.satResult > 0 || fb.satTool > 0) return false; // Có emoji -> Giữ
+
+    // Nếu vượt qua tất cả cửa ải trên -> Đây là chu kỳ rác
+    return true; 
+}
+// ============================================================
+// [MỚI] TÍNH NĂNG VẼ BIỂU ĐỒ KHOA HỌC (Chart.js)
+// ============================================================
+
+let myCharts = {}; // Biến lưu các biểu đồ để hủy khi vẽ lại
+
+function openAnalysisModal() {
+    document.getElementById('analysisModal').style.display = 'block';
+    processAndDrawCharts();
+drawFeedbackSpaghettiCharts();
+}
+
+function processAndDrawCharts() {
+    // 1. CHUẨN BỊ DỮ LIỆU
+    // Mảng lưu điểm trung bình của TẤT CẢ user theo từng chu kỳ (Chu kỳ 1, 2, 3, 4)
+    let cycleStats = { 0: [], 1: [], 2: [], 3: [] }; // 0 là tuần 1, 1 là tuần 2...
+    
+    // Đếm số lượng loại tâm lý (cho biểu đồ tròn)
+    let personalityCounts = { "Bản năng": 0, "Bản ngã": 0, "Siêu ngã": 0 };
+    
+    // Dữ liệu đánh giá R1, R2, R3
+    let ratingStats = { r1: 0, r2: 0, r3: 0, count: 0 };
+
+    usersData.forEach(user => {
+        if (!user.processedHistory) return;
+        
+        // Duyệt qua lịch sử của từng user
+        user.processedHistory.forEach((cycle, index) => {
+            // Chỉ lấy tối đa 4 chu kỳ đầu để thống kê cho chuẩn
+            if (index < 4) {
+                cycleStats[index].push(Number(cycle.avgScore));
+            }
+            
+            // Đếm loại tâm lý dựa trên điểm trung bình chu kỳ
+            if (Math.abs(cycle.avgScore) <= 3333) personalityCounts["Bản ngã"]++;
+            else if (cycle.avgScore > 3333) personalityCounts["Siêu ngã"]++;
+            else personalityCounts["Bản năng"]++;
+
+            // Cộng dồn điểm đánh giá (R1, R2, R3 từ feedback)
+            if (cycle.feedback) {
+                ratingStats.r1 += Number(cycle.feedback.r1 || 0);
+                ratingStats.r2 += Number(cycle.feedback.r2 || 0);
+                ratingStats.r3 += Number(cycle.feedback.r3 || 0);
+                ratingStats.count++;
+            }
+        });
+    });
+
+    // Tính trung bình cộng cho các chu kỳ
+    let trendData = [];
+    for (let i = 0; i < 4; i++) {
+        let arr = cycleStats[i];
+        let avg = arr.length > 0 ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+        trendData.push(avg);
+    }
+
+    // 2. VẼ BIỂU ĐỒ (Sử dụng Chart.js)
+    
+    // Hủy biểu đồ cũ nếu có (tránh lỗi đè hình)
+    if(myCharts['trend']) myCharts['trend'].destroy();
+    if(myCharts['compare']) myCharts['compare'].destroy();
+    if(myCharts['pie']) myCharts['pie'].destroy();
+    if(myCharts['radar']) myCharts['radar'].destroy();
+
+    // --- CHART 1: XU HƯỚNG (LINE) ---
+    const ctx1 = document.getElementById('trendChart').getContext('2d');
+    myCharts['trend'] = new Chart(ctx1, {
+        type: 'line',
+        data: {
+            labels: ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4'],
+            datasets: [{
+                label: 'Điểm Cân bằng Trung bình',
+                data: trendData,
+                borderColor: '#2980b9',
+                backgroundColor: 'rgba(41, 128, 185, 0.2)',
+                tension: 0.3, // Làm mượt đường
+                fill: true
+            }]
+        },
+        options: { scales: { y: { min: -10000, max: 10000 } } }
+    });
+
+    // --- CHART 2: SO SÁNH (BAR) ---
+    const ctx2 = document.getElementById('compareChart').getContext('2d');
+    myCharts['compare'] = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+            labels: ['Tuần 1 (Bắt đầu)', 'Tuần 4 (Hiện tại)'],
+            datasets: [{
+                label: 'Điểm số',
+                data: [trendData[0], trendData[3]], // So sánh tuần đầu và tuần 4
+                backgroundColor: ['#e74c3c', '#27ae60']
+            }]
+        },
+        options: { 
+            plugins: { title: { display: true, text: 'So sánh mức độ cải thiện' } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    // --- CHART 3: CẤU TRÚC NHÂN CÁCH (PIE) ---
+    const ctx3 = document.getElementById('pieChart').getContext('2d');
+    myCharts['pie'] = new Chart(ctx3, {
+        type: 'doughnut',
+        data: {
+            labels: ['Bản năng (Tiêu cực)', 'Bản ngã (Cân bằng)', 'Siêu ngã (Tích cực)'],
+            datasets: [{
+                data: [personalityCounts["Bản năng"], personalityCounts["Bản ngã"], personalityCounts["Siêu ngã"]],
+                backgroundColor: ['#c0392b', '#2ecc71', '#f1c40f']
+            }]
+        }
+    });
+
+    // --- CHART 4: NHẬN THỨC (RADAR) ---
+    let rCount = ratingStats.count || 1;
+    const ctx4 = document.getElementById('radarChart').getContext('2d');
+    myCharts['radar'] = new Chart(ctx4, {
+        type: 'radar',
+        data: {
+            labels: ['Dễ sử dụng (R1)', 'Hiểu bản thân (R2)', 'Thay đổi hành vi (R3)'],
+            datasets: [{
+                label: 'Điểm đánh giá trung bình (1-5 sao)',
+                data: [ratingStats.r1/rCount, ratingStats.r2/rCount, ratingStats.r3/rCount],
+                backgroundColor: 'rgba(142, 68, 173, 0.4)',
+                borderColor: '#8e44ad',
+                pointBackgroundColor: '#fff'
+            }]
+        },
+        options: { scales: { r: { min: 0, max: 5 } } }
+    });
+}
+function processAndDrawCharts() {
+    // 1. CHUẨN BỊ DỮ LIỆU
+    
+    // Dataset cho biểu đồ Spaghetti (Mảng các đường)
+    let spaghettiDatasets = [];
+    
+    // Dataset cho biểu đồ Scatter (Mảng các điểm x,y)
+    let scatterPoints = [];
+    
+    // Dữ liệu để tính đường trung bình (cho Spaghetti)
+    let sumScores = [0, 0, 0, 0];
+    let countScores = [0, 0, 0, 0];
+
+    // --- DUYỆT QUA TỪNG NGƯỜI DÙNG ---
+    usersData.forEach(user => {
+        if (!user.processedHistory || user.processedHistory.length === 0) return;
+
+        // Lấy danh sách điểm trung bình của user này qua các chu kỳ (Lấy tối đa 4 chu kỳ đầu)
+        // Lưu ý: Đảo ngược lại để đúng thứ tự thời gian nếu history đang lưu Mới -> Cũ
+        // Giả sử history đang lưu: [Chu kỳ 4, Chu kỳ 3, Chu kỳ 2, Chu kỳ 1] -> Cần đảo thành [1, 2, 3, 4]
+        // Code của bạn hiện tại: user.processedHistory[0] là MỚI NHẤT.
+        
+        // Tạo bản sao và đảo ngược để có thứ tự: Tuần 1 -> Tuần 2 -> ... -> Hiện tại
+        let reversedHistory = [...user.processedHistory].reverse(); 
+        
+        let userScores = [];
+        reversedHistory.forEach((cycle, idx) => {
+            if (idx < 4) { // Chỉ lấy 4 chu kỳ đầu tiên
+                let score = Number(cycle.avgScore);
+                userScores.push(score);
+                
+                // Cộng dồn để tính trung bình chung
+                sumScores[idx] += score;
+                countScores[idx]++;
+            }
+        });
+
+        // 1.1 Thêm đường của user này vào Spaghetti (Màu xám nhạt, mảnh)
+        spaghettiDatasets.push({
+            label: user.profile.fullName, // Tên user (ẩn trong tooltip)
+            data: userScores,
+            borderColor: 'rgba(100, 149, 237, 0.15)', // Màu xanh nhạt, rất trong suốt
+            borderWidth: 1,
+            pointRadius: 0, // Không vẽ chấm tròn để đỡ rối
+            fill: false,
+            tension: 0.4 // Đường cong mềm mại
+        });
+
+        // 1.2 Thêm điểm vào Scatter (So sánh điểm đầu và điểm cuối)
+        if (userScores.length >= 2) {
+            // Lấy điểm đầu tiên (Tuần 1) và điểm cuối cùng hiện có
+            let firstScore = userScores[0]; 
+            let lastScore = userScores[userScores.length - 1];
+            
+            scatterPoints.push({
+                x: firstScore, // Điểm bắt đầu
+                y: lastScore,  // Điểm kết thúc
+                name: user.profile.fullName // Để hiện tên khi rê chuột vào chấm
+            });
+        }
+    });
+
+    // Tính đường trung bình chung (Đường màu Đỏ đậm)
+    let avgData = [];
+    for(let i=0; i<4; i++) {
+        if(countScores[i] > 0) avgData.push(sumScores[i] / countScores[i]);
+    }
+    
+    // Thêm đường trung bình vào cuối mảng datasets để nó đè lên trên
+    spaghettiDatasets.push({
+        label: 'TRUNG BÌNH CHUNG (Xu hướng tập thể)',
+        data: avgData,
+        borderColor: '#e74c3c', // Màu đỏ đậm
+        borderWidth: 4,
+        pointRadius: 4,
+        pointBackgroundColor: '#fff',
+        fill: false,
+        tension: 0.4
+    });
+
+    // 2. VẼ BIỂU ĐỒ (Chart.js)
+
+    // Hủy biểu đồ cũ
+    if(myCharts['spaghetti']) myCharts['spaghetti'].destroy();
+    if(myCharts['scatter']) myCharts['scatter'].destroy();
+
+    // --- VẼ BIỂU ĐỒ 1: SPAGHETTI ---
+    const ctx1 = document.getElementById('spaghettiChart').getContext('2d');
+    myCharts['spaghetti'] = new Chart(ctx1, {
+        type: 'line',
+        data: {
+            labels: ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4'],
+            datasets: spaghettiDatasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    labels: {
+                        filter: function(item, chart) {
+                            // Chỉ hiện chú thích cho đường Trung bình, ẩn hết các user lẻ
+                            return item.text === 'TRUNG BÌNH CHUNG (Xu hướng tập thể)';
+                        }
+                    }
+                },
+                tooltip: {
+                    mode: 'nearest',
+                    intersect: false
+                }
+            },
+            scales: {
+                y: {
+                    min: -10000, max: 10000,
+                    title: { display: true, text: 'Điểm Tâm lý ( -10k đến +10k )' }
+                }
+            }
+        }
+    });
+
+    // --- VẼ BIỂU ĐỒ 2: SCATTER (PHÂN TÁN) ---
+    const ctx2 = document.getElementById('scatterChart').getContext('2d');
+    myCharts['scatter'] = new Chart(ctx2, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Sự thay đổi của từng cá nhân',
+                data: scatterPoints,
+                backgroundColor: function(context) {
+                    // Tô màu chấm: Xanh nếu điểm cuối cao hơn điểm đầu (Tiến bộ), Đỏ nếu tụt lùi
+                    const val = context.raw;
+                    if(!val) return '#ccc';
+                    // Logic màu sắc: Nếu điểm cuối (y) tiến về vùng 0 (Cân bằng) hơn điểm đầu (x) thì là Tốt
+                    // Hoặc đơn giản: Nếu Y > X (Hướng về Siêu ngã)
+                    return (val.y > val.x) ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)';
+                },
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.raw.name}: Tuần đầu ${context.raw.x} -> Tuần cuối ${context.raw.y}`;
+                        }
+                    }
+                },
+                annotation: { // Vẽ đường chéo y=x (Đường giữ nguyên)
+                    annotations: {
+                        line1: {
+                            type: 'line',
+                            scaleID: 'x',
+                            value: -10000,
+                            endValue: 10000,
+                            scaleID: 'y',
+                            value: -10000,
+                            endValue: 10000,
+                            borderColor: '#ccc',
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            label: { content: 'Không thay đổi', enabled: true }
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { title: { display: true, text: 'Điểm Tuần Đầu Tiên' }, min: -10000, max: 10000 },
+                y: { title: { display: true, text: 'Điểm Tuần Gần Nhất' }, min: -10000, max: 10000 }
+            }
+        }
+    });
+drawCompareGroupChart();
+}
+// ============================================================
+// [MỚI] TÍNH NĂNG: QUY CHUẨN HÓA 4 CHU KỲ (Standardize Cycles)
+// ============================================================
+// ============================================================
+// [MỚI] QUY CHUẨN 4 CHU KỲ THEO MỐC THỜI GIAN CỐ ĐỊNH
+// ============================================================
+
+function standardizeCycles() {
+    // 1. ĐỊNH NGHĨA 4 KHUNG THỜI GIAN CỨNG (Lưu ý: Tháng trong JS bắt đầu từ 0. Tháng 11 là 10, Tháng 12 là 11)
+    const RANGES = [
+        {
+            id: 1, name: "Chu kỳ 1 (25/11 - 05/12)",
+            start: new Date(2025, 10, 25, 22, 0, 0).getTime(),  // 22:00 25/11/2025
+            end:   new Date(2025, 11, 5, 21, 59, 59).getTime()  // 21:59 05/12/2025
+        },
+        {
+            id: 2, name: "Chu kỳ 2 (05/12 - 12/12)",
+            start: new Date(2025, 11, 5, 22, 0, 0).getTime(),   // 22:00 05/12/2025
+            end:   new Date(2025, 11, 12, 21, 59, 59).getTime() // 21:59 12/12/2025
+        },
+        {
+            id: 3, name: "Chu kỳ 3 (12/12 - 19/12)",
+            start: new Date(2025, 11, 12, 22, 0, 0).getTime(),  // 22:00 12/12/2025
+            end:   new Date(2025, 11, 19, 21, 59, 59).getTime() // 21:59 19/12/2025
+        },
+        {
+            id: 4, name: "Chu kỳ 4 (19/12 - 26/12)",
+            start: new Date(2025, 11, 19, 22, 0, 0).getTime(),  // 22:00 19/12/2025
+            end:   new Date(2025, 11, 26, 21, 59, 59).getTime() // 21:59 26/12/2025
+        }
+    ];
+
+    // Cảnh báo quan trọng
+    const msg = `⚠️ QUY CHUẨN HÓA DỮ LIỆU ĐỒNG LOẠT\n\n` +
+        `Hệ thống sẽ sắp xếp lại toàn bộ dữ liệu gạt thước và nhật ký của TẤT CẢ USER vào 4 khung thời gian chuẩn:\n` +
+        `1. 25/11 -> 05/12\n2. 05/12 -> 12/12\n3. 12/12 -> 19/12\n4. 19/12 -> 26/12\n\n` +
+        `✅ Dữ liệu sẽ được dịch chuyển vào đúng chu kỳ.\n` +
+        `✅ Điểm trung bình sẽ được tính lại.\n` +
+        `✅ Nội dung nhật ký sẽ được gộp lại (không bị xóa).\n\n` +
+        `Bạn có chắc chắn muốn thực hiện?`;
+
+    if (!confirm(msg)) return;
+
+    // Hiển thị trạng thái đang xử lý
+    const btn = document.querySelector('button[onclick="standardizeCycles()"]');
+    const oldText = btn.innerHTML;
+    btn.innerHTML = "⏳ Đang quy chuẩn...";
+    btn.disabled = true;
+
+    const updatePromises = [];
+
+    // 2. DUYỆT QUA TỪNG USER
+    usersData.forEach(user => {
+        // Tạo 4 "cái xô" chứa dữ liệu mới
+        let buckets = RANGES.map(r => ({
+            rangeInfo: r,
+            entries: [],      // Chứa các lần gạt thước thuộc khung giờ này
+            feedbacks: []     // Chứa các bài nhật ký thuộc khung giờ này
+        }));
+
+        // A. THU GOM DỮ LIỆU CŨ (FLATTEN)
+        const oldHistory = user.processedHistory || [];
+        
+        oldHistory.forEach(cycle => {
+            // 1. Phân phối Entries (Gạt thước)
+            if (cycle.entries && Array.isArray(cycle.entries)) {
+                cycle.entries.forEach(entry => {
+                    const ts = entry.ts || entry.time || 0; // Timestamp của lần gạt
+                    // Tìm xem lần gạt này thuộc khung giờ nào
+                    const bucketIndex = RANGES.findIndex(r => ts >= r.start && ts <= r.end);
+                    if (bucketIndex !== -1) {
+                        buckets[bucketIndex].entries.push(entry);
+                    }
+                });
+            }
+
+            // 2. Phân phối Feedback (Nhật ký)
+            // Lấy thời gian kết thúc chu kỳ cũ làm mốc thời gian cho bài nhật ký đó
+            const fbTime = cycle.endTime || cycle.startTime || 0;
+            const bucketIndex = RANGES.findIndex(r => fbTime >= r.start && fbTime <= r.end);
+            
+            if (bucketIndex !== -1 && cycle.feedback) {
+                // Chỉ lấy những feedback có dữ liệu thực
+                const fb = cycle.feedback;
+                if (fb.q1 || fb.content || fb.r1 > 0 || fb.satResult > 0) {
+                    buckets[bucketIndex].feedbacks.push(fb);
+                }
+            }
+        });
+
+        // B. TÁI CẤU TRÚC LỊCH SỬ MỚI
+        // Tạo mảng lịch sử mới theo thứ tự Chu kỳ 1 -> 4
+        let newHistoryAscending = buckets.map(bucket => {
+            // 1. Xử lý Entries: Sắp xếp theo thời gian tăng dần
+            bucket.entries.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+            
+            // 2. Tính lại điểm số
+            let avg = 0;
+            let total = 0;
+            if (bucket.entries.length > 0) {
+                total = bucket.entries.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+                avg = Math.round((total / bucket.entries.length) * 10) / 10;
+            }
+
+            // 3. Gộp Feedback (Merge Strategy)
+            // Nếu có nhiều bài nhật ký trong 1 chu kỳ, ta nối chuỗi lại để không mất dữ liệu
+            let mergedFeedback = { q1:"", q2:"", q3:"", r1:0, r2:0, r3:0, satResult:0, satTool:0 };
+            
+            if (bucket.feedbacks.length > 0) {
+                // Hàm nối văn bản: "Nội dung A" + "---" + "Nội dung B"
+                const joinText = (key) => bucket.feedbacks
+                    .map(fb => fb[key] || fb.content || "") 
+                    .filter(txt => txt.trim() !== "")
+                    .join('\n---\n');
+
+                // Hàm tính trung bình đánh giá sao (hoặc lấy cái lớn nhất/mới nhất tùy chọn)
+                // Ở đây chọn cách lấy giá trị MỚI NHẤT (của bài viết cuối cùng trong chu kỳ)
+                const lastFb = bucket.feedbacks[bucket.feedbacks.length - 1];
+
+                mergedFeedback = {
+                    q1: joinText('q1'),
+                    q2: joinText('q2'),
+                    q3: joinText('q3'),
+                    r1: lastFb.r1 || 0,
+                    r2: lastFb.r2 || 0,
+                    r3: lastFb.r3 || 0,
+                    satResult: lastFb.satResult || 0,
+                    satTool: lastFb.satTool || 0
+                };
+            }
+
+            // Trả về object Cycle hoàn chỉnh
+            return {
+                cycleId: bucket.rangeInfo.id, // ID 1, 2, 3, 4
+                name: bucket.rangeInfo.name,
+                startTime: bucket.rangeInfo.start,
+                endTime: bucket.rangeInfo.end,
+                entries: bucket.entries,
+                avgScore: avg,
+                totalScore: total, // Thêm trường tổng điểm
+                feedback: mergedFeedback,
+                note: "Standardized" // Đánh dấu đã quy chuẩn
+            };
+        });
+
+        // Đảo ngược lại để Chu kỳ 4 (Mới nhất) lên đầu mảng (Index 0) theo đúng logic hiển thị Admin
+        const finalHistory = newHistoryAscending.reverse();
+
+        // Push vào danh sách chờ cập nhật Firebase
+        updatePromises.push(
+            db.ref('users/' + user.id + '/history').set(finalHistory)
+        );
+    });
+
+    // 3. THỰC THI (COMMIT)
+    Promise.all(updatePromises)
+        .then(() => {
+            alert(`✅ HOÀN TẤT!\nĐã quy chuẩn hóa dữ liệu cho ${updatePromises.length} người dùng về đúng 4 chu kỳ chuẩn.`);
+            btn.innerHTML = oldText;
+            btn.disabled = false;
+        })
+        .catch(err => {
+            alert("❌ Lỗi: " + err.message);
+            btn.innerHTML = oldText;
+            btn.disabled = false;
+        });
+}function drawCompareGroupChart() {
+    let yesCountsUser = new Array(9).fill(0);    
+    let yesCountsControl = new Array(9).fill(0); 
+    let totalUserGroup = 0;    
+    let totalControlGroup = 0;
+
+    // Duyệt qua biến usersData đã có sẵn trong admin.html của bạn
+    usersData.forEach(u => {
+        if (u.finalSurveyV2 && u.finalSurveyV2.answers) {
+            const survey = u.finalSurveyV2;
+            const answers = survey.answers;
+            
+            if (survey.group === 'Người Dùng Thước') {
+                totalUserGroup++;
+                for (let i = 0; i < 9; i++) {
+                    if (answers[i] === 'yes') yesCountsUser[i]++;
+                }
+            } else {
+                totalControlGroup++;
+                for (let i = 0; i < 9; i++) {
+                    if (answers[i] === 'yes') yesCountsControl[i]++;
+                }
+            }
+        }
+    });
+
+    const percentUser = yesCountsUser.map(c => totalUserGroup > 0 ? ((c / totalUserGroup) * 100).toFixed(1) : 0);
+    const percentControl = yesCountsControl.map(c => totalControlGroup > 0 ? ((c / totalControlGroup) * 100).toFixed(1) : 0);
+
+    const ctx = document.getElementById('compareGroupChart').getContext('2d');
+    if (window.groupChartInst) window.groupChartInst.destroy();
+
+    window.groupChartInst = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
+            datasets: [
+                {
+                    label: `Nhóm Dùng Thước (N=${totalUserGroup})`,
+                    data: percentUser,
+                    backgroundColor: '#1a73e8'
+                },
+                {
+                    label: `Nhóm Đối Chứng (N=${totalControlGroup})`,
+                    data: percentControl,
+                    backgroundColor: '#d93025'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, max: 100, title: { display: true, text: 'Tỷ lệ % trả lời "CÓ"' } },
+                x: { title: { display: true, text: '9 Câu hỏi khảo sát' } }
+            }
+        }
+    });
+}
+function drawFeedbackSpaghettiCharts() {
+    // 1. Cấu hình danh sách các biểu đồ cần vẽ
+    const configs = [
+        { key: 'r1', title: 'Giao diện ứng dụng (R1)', canvasId: 'chartR1', color: 'rgba(54, 162, 235, 0.5)' },
+        { key: 'r2', title: 'Hiểu bản thân (R2)', canvasId: 'chartR2', color: 'rgba(153, 102, 255, 0.5)' },
+        { key: 'r3', title: 'Giúp thay đổi hành vi (R3)', canvasId: 'chartR3', color: 'rgba(75, 192, 192, 0.5)' },
+        { key: 'satResult', title: 'Hài lòng với kết quả (R4)', canvasId: 'chartSatResult', color: 'rgba(255, 159, 64, 0.5)' },
+        { key: 'satTool', title: 'Hài lòng với cây thước (R5)', canvasId: 'chartSatTool', color: 'rgba(255, 99, 132, 0.5)' },
+        // Thêm 2 biểu đồ mới vào đây
+        { key: 'totalScore', title: 'Biến thiên Tổng điểm qua 4 tuần', canvasId: 'chartTotalScore', color: 'rgba(44, 62, 80, 0.5)' },
+        { key: 'entryCount', title: 'Số lần gạt thước qua 4 tuần', canvasId: 'chartEntryCount', color: 'rgba(39, 174, 96, 0.5)' }
+    ];
+
+    // 2. Hàm xử lý dữ liệu cho từng biểu đồ
+    const createDatasets = (key, color) => {
+        return usersData.map(user => {
+            // Đảo ngược lịch sử để có thứ tự: Tuần 1 -> Tuần 4
+            let reversedHistory = [...(user.processedHistory || [])].reverse();
+            let dataPoints = [];
+
+            for(let i=0; i<4; i++) {
+                let cycle = reversedHistory[i];
+                let val = 0;
+
+                if (cycle) {
+                    if (key === 'totalScore') {
+                        // Tính tổng điểm (sum của các lần gạt trong entries)
+                        val = (cycle.entries || []).reduce((sum, e) => sum + (Number(e.value) || 0), 0);
+                    } else if (key === 'entryCount') {
+                        // Tính số lần gạt (độ dài mảng entries)
+                        val = (cycle.entries || []).length;
+                    } else {
+                        // Lấy các chỉ số r1, r2, r3, sat từ feedback
+                        val = cycle.feedback ? (Number(cycle.feedback[key]) || 0) : 0;
+                    }
+                }
+                dataPoints.push(val);
+            }
+
+            return {
+                label: user.profile ? user.profile.fullName : 'Ẩn danh',
+                data: dataPoints,
+                borderColor: color,
+                borderWidth: 1.5,
+                pointRadius: 2,
+                fill: false,
+                tension: 0.3
+            };
+        });
+    };
+
+    // 3. Thực hiện vẽ từng biểu đồ dựa trên cấu hình
+    configs.forEach(cfg => {
+        const ctx = document.getElementById(cfg.canvasId).getContext('2d');
+        
+        // Hủy chart cũ nếu đã tồn tại để tránh lỗi đè dữ liệu
+        if (window['chartInst_' + cfg.key]) {
+            window['chartInst_' + cfg.key].destroy();
+        }
+
+        window['chartInst_' + cfg.key] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4'],
+                datasets: createDatasets(cfg.key, cfg.color)
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: { display: true, text: cfg.title, font: {size: 14, weight: 'bold'} },
+                    legend: { display: false }, 
+                    tooltip: { mode: 'index', intersect: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: (cfg.key === 'entryCount'), // Số lần gạt bắt đầu từ 0
+                        // Tự động căn chỉnh trục Y cho Tổng điểm & Số lần gạt, còn lại giữ 1-5
+                        min: (cfg.key === 'totalScore' || cfg.key === 'entryCount') ? undefined : 1,
+                        max: (cfg.key === 'totalScore' || cfg.key === 'entryCount') ? undefined : 5,
+                        ticks: { 
+                            stepSize: (cfg.key === 'entryCount') ? 1 : undefined 
+                        },
+                        title: { 
+                            display: true, 
+                            text: (cfg.key === 'entryCount') ? 'Lượt' : (cfg.key === 'totalScore' ? 'Điểm' : 'Thang 1-5') 
+                        }
+                    }
+                }
+            }
+        });
+    });
+}    </script>
+</body>
+</html>
